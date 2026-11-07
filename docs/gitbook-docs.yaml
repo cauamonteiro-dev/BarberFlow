@@ -1,0 +1,12 @@
+$schema: https://api.gitbook.com/gitbook-docs.yaml
+site:
+  title: A3 - Sistema de Gerenciamento de Barbearia Docs
+  structure:
+    - type: space
+      key: space-1
+      title: BarberFlow
+      path: untitled
+      default: true
+      content:
+        directory: ./
+        language: pt
