@@ -1,0 +1,26 @@
+### Cadastro: deve retornar 201 e um cabeçalho Location.
+POST http://localhost:8080/api/barbearias
+Content-Type: application/json
+
+{
+  "nome": "BarberFlow Nova Lima",
+  "ativa": true
+}
+
+### Listar: deve retornar 200 e um array JSON.
+GET http://localhost:8080/api/barbearias
+
+### Buscar: substitua 1 pelo id recebido no cadastro.
+GET http://localhost:8080/api/barbearias/1
+
+### Validação: deve retornar 400, sem salvar o registro.
+POST http://localhost:8080/api/barbearias
+Content-Type: application/json
+
+{
+  "nome": "   ",
+  "ativa": true
+}
+
+### Recurso inexistente: deve retornar 404 se esse id não existir.
+GET http://localhost:8080/api/barbearias/999999
