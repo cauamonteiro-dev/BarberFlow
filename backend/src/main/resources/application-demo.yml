@@ -1,0 +1,4 @@
+# Ative somente ao iniciar um banco de desenvolvimento vazio para demonstração.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/demo
