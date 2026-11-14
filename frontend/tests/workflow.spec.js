@@ -1,10 +1,17 @@
+import { loginRequest } from "./helpers";
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 const testShops = [];
+let authHeaders;
+test.beforeEach(async ({ request, context }) => {
+  authHeaders = await loginRequest(request);
+  await loginRequest(context.request);
+});
 test.afterEach(async ({ request }) => {
   for (const shop of testShops.splice(0))
     await request.put("/api/barbearias/" + shop.id, {
       data: { nome: shop.nome, ativa: false },
+      headers: authHeaders,
     });
 });
 
@@ -17,6 +24,7 @@ test("gestão completa, conflito de agenda e persistência na interface", async 
   const name = "Estúdio de teste " + Date.now();
   const created = await request.post("/api/barbearias", {
     data: { nome: name, ativa: true },
+    headers: authHeaders,
   });
   expect(created.status()).toBe(201);
   const shop = await created.json();
@@ -83,7 +91,7 @@ test("gestão completa, conflito de agenda e persistência na interface", async 
     await dialog
       .getByLabel("Serviço", { exact: true })
       .selectOption({ label: "Corte especial • 30 min" });
-    await dialog.getByLabel("Início do atendimento").fill("2027-01-10T10:00");
+    await dialog.getByLabel("Início do atendimento").fill("2027-01-11T10:00");
   }
   await fillBooking();
   await dialog
@@ -140,6 +148,7 @@ test("gestão completa, conflito de agenda e persistência na interface", async 
   // Keep the test data for inspection, but distinguish it from active real shops.
   await request.put("/api/barbearias/" + shop.id, {
     data: { nome: name, ativa: false },
+    headers: authHeaders,
   });
 });
 

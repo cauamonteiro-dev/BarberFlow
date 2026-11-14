@@ -683,8 +683,10 @@ export default function App() {
                       ],
                       [
                         cash(report?.resumo.valorServicosConcluidos),
-                        "Serviços concluídos",
-                        "Soma pelos preços atuais",
+                        "Faturamento dos serviços",
+                        report?.resumo.atendimentosEstimados
+                          ? "Inclui valores históricos estimados"
+                          : "Pelos valores combinados",
                         "↗",
                       ],
                     ].map(([value, label, hint, icon]) => (
@@ -795,9 +797,10 @@ export default function App() {
                         <div>
                           <h2>Atendimentos por profissional</h2>
                           <p>
-                            Contagens por período de início do agendamento.
-                            Valores usam o preço atual do serviço, sem
-                            representar pagamentos recebidos.
+                            Atendimentos em aberto pela data agendada;
+                            concluídos pela data de conclusão. Valores dos
+                            serviços realizados, sem representar pagamentos
+                            recebidos.
                           </p>
                         </div>
                       </div>
@@ -825,6 +828,11 @@ export default function App() {
                           </tbody>
                         </table>
                       </div>
+                      <p className="report-note">
+                        {report?.resumo.atendimentosEstimados || 0}{" "}
+                        atendimento(s) concluído(s) com valor histórico
+                        estimado. Os demais usam o preço combinado na reserva.
+                      </p>
                       <div className="status-totals">
                         {report?.porStatus.map((x) => (
                           <div key={x.status}>

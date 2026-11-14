@@ -24,6 +24,14 @@ public class Agendamento {
     private LocalDateTime fim;
     @Enumerated(EnumType.STRING) @Column(nullable=false, length=20)
     private StatusAgendamento status;
+    @Column(name="valor_acordado",precision=10,scale=2) private BigDecimal valorAcordado;
+    @Column(name="valor_estimado",nullable=false) private boolean valorEstimado=true;
+    @Column(name="concluido_em") private LocalDateTime concluidoEm;
+    public BigDecimal getValorAcordado(){return valorAcordado;}
+    public boolean isValorEstimado(){return valorEstimado;}
+    public LocalDateTime getConcluidoEm(){return concluidoEm;}
+    public void combinarValor(BigDecimal valor){this.valorAcordado=valor;this.valorEstimado=false;}
+    public void concluir(){if(concluidoEm==null)concluidoEm=LocalDateTime.now();}
     protected Agendamento() {}
     public Agendamento(Long barbeariaId, Long clienteId, Long barbeiroId, Long servicoId, LocalDateTime inicio, LocalDateTime fim, StatusAgendamento status) { atualizar(barbeariaId, clienteId, barbeiroId, servicoId, inicio, fim, status); }
     public void atualizar(Long barbeariaId, Long clienteId, Long barbeiroId, Long servicoId, LocalDateTime inicio, LocalDateTime fim, StatusAgendamento status) {

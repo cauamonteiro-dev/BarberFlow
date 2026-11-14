@@ -64,6 +64,10 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.CONFLICT, "Regra de negócio", exception.getMessage());
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ProblemDetail forbidden(org.springframework.security.access.AccessDeniedException e) {
+        return problem(HttpStatus.FORBIDDEN,"Acesso negado",e.getMessage());
+    }
     private ProblemDetail problem(HttpStatus status, String title, String detail) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setType(URI.create("about:blank"));

@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class GestaoService {
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
+    private final br.com.barberflow.acesso.HorariosService horarios;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final BarbeariaRepository lojas;
     private final ClienteRepository clientes;
     private final VinculoRepository vinculos;
@@ -26,7 +28,8 @@ public class GestaoService {
 
     public GestaoService(BarbeariaRepository lojas, ClienteRepository clientes, VinculoRepository vinculos,
             BarbeiroRepository barbeiros, ServicoRepository servicos, PlanoRepository planos,
-            AgendamentoRepository agendamentos, AssinaturaRepository assinaturas) {
+            AgendamentoRepository agendamentos, AssinaturaRepository assinaturas, br.com.barberflow.acesso.HorariosService horarios, org.springframework.jdbc.core.JdbcTemplate jdbc) {
+        this.horarios=horarios;this.jdbc=jdbc;
         this.lojas=lojas; this.clientes=clientes; this.vinculos=vinculos; this.barbeiros=barbeiros;
         this.servicos=servicos; this.planos=planos; this.agendamentos=agendamentos; this.assinaturas=assinaturas;
     }
@@ -92,7 +95,9 @@ public class GestaoService {
         Barbeiro v=id==null ? new Barbeiro(r.barbeariaId(),r.nome(),r.status()) : barbeiro(id);
         mesmaLoja(v.getBarbeariaId(),r.barbeariaId());
         v.atualizar(r.barbeariaId(),r.nome(),r.status());
-        return barbeiros.saveAndFlush(v);
+        v=barbeiros.saveAndFlush(v);
+        if(id==null)jdbc.update("insert into expediente(barbeiro_id,dia_semana,inicio,fim) select ?,d,'09:00'::time,'18:00'::time from generate_series(1,6) d",v.getId());
+        return v;
     }
     @Transactional
     public Servico salvarServico(Long id, ServicoInput r) {
@@ -123,7 +128,12 @@ public class GestaoService {
         var vinculo=vinculos.findByClienteIdAndBarbeariaId(r.clienteId(),r.barbeariaId())
             .orElseThrow(() -> new RegraNegocioException("Vincule o cliente à barbearia antes de agendar."));
         Agendamento anterior=id==null ? null : agendamento(id);
+        if(anterior!=null) entityManager.refresh(anterior);
         if(anterior!=null) mesmaLoja(anterior.getBarbeariaId(),r.barbeariaId());
+        if(anterior!=null && anterior.getStatus()==StatusAgendamento.CONCLUIDO) {
+            exigir(anterior.getClienteId().equals(r.clienteId()) && anterior.getBarbeiroId().equals(r.barbeiroId()) && anterior.getServicoId().equals(r.servicoId()) && anterior.getInicio().equals(r.inicio()) && r.status()==StatusAgendamento.CONCLUIDO,"Atendimentos concluídos não podem ser alterados ou reabertos.");
+            return anterior;
+        }
         boolean mudou=anterior==null || !anterior.getInicio().equals(r.inicio())
             || !anterior.getClienteId().equals(r.clienteId()) || !anterior.getBarbeiroId().equals(r.barbeiroId())
             || !anterior.getServicoId().equals(r.servicoId());
@@ -136,12 +146,17 @@ public class GestaoService {
         }
         // Status-only updates preserve the duration originally booked.
         LocalDateTime fim=mudou ? r.inicio().plusMinutes(servico.getDuracaoMin()) : anterior.getFim();
+        if((mudou || reativou) && r.status()!=StatusAgendamento.CANCELADO)
+            exigir(horarios.disponivel(r.barbeiroId(),r.inicio(),fim),"O horário está fora do expediente ou possui um bloqueio.");
         if(r.status()!=StatusAgendamento.CANCELADO) {
             exigir(agendamentos.conflitos(r.barbeiroId(),r.inicio(),fim,id)==0,
                 "O barbeiro já possui um agendamento nesse intervalo.");
         }
+        boolean novoServico=anterior==null || !anterior.getServicoId().equals(r.servicoId());
         Agendamento a=anterior==null ? new Agendamento(r.barbeariaId(),r.clienteId(),r.barbeiroId(),r.servicoId(),r.inicio(),fim,r.status()) : anterior;
         a.atualizar(r.barbeariaId(),r.clienteId(),r.barbeiroId(),r.servicoId(),r.inicio(),fim,r.status());
+        if(novoServico)a.combinarValor(servico.getPreco());
+        if(r.status()==StatusAgendamento.CONCLUIDO)a.concluir();
         return agendamentos.saveAndFlush(a);
     }
     @Transactional
@@ -172,7 +187,7 @@ public class GestaoService {
         if(ignorar!=null) mesmaLoja(agendamento(ignorar).getBarbeariaId(),loja);
         var fim=inicio.plusMinutes(s.getDuracaoMin());
         boolean livre=lojas.findById(loja).orElseThrow().isAtiva() && b.getStatus()==StatusCadastro.ATIVO
-            && s.getStatus()==StatusCadastro.ATIVO && agendamentos.conflitos(barbeiroId,inicio,fim,ignorar)==0;
+            && s.getStatus()==StatusCadastro.ATIVO && horarios.disponivel(barbeiroId,inicio,fim) && agendamentos.conflitos(barbeiroId,inicio,fim,ignorar)==0;
         return Map.of("disponivel",livre,"inicio",inicio,"fim",fim);
     }
     private void existeLoja(Long id) { if(!lojas.existsById(id)) throw ausente("Barbearia"); }

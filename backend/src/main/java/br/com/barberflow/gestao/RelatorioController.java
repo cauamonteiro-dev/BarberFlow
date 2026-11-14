@@ -15,7 +15,7 @@ public class RelatorioController {
     public RelatorioController(JdbcTemplate jdbc,GestaoService gestao) { this.jdbc=jdbc; this.gestao=gestao; }
 
     public record Resumo(long clientesAtivos,long barbeirosAtivos,long servicosAtivos,long assinaturasVigentes,
-        long agendamentos,long concluidos,BigDecimal valorServicosConcluidos) {}
+        long agendamentos,long concluidos,BigDecimal valorServicosConcluidos,long atendimentosEstimados) {}
     public record PorBarbeiro(long id,String nome,long agendamentos,long concluidos,BigDecimal valorServicosConcluidos) {}
     public record PorStatus(String status,long quantidade) {}
     public record Relatorio(Resumo resumo,List<PorBarbeiro> barbeiros,List<PorStatus> porStatus) {}
@@ -34,18 +34,19 @@ public class RelatorioController {
         var rows=jdbc.query("""
             select b.id,b.nome,count(a.id) total,
                 count(a.id) filter (where a.status='CONCLUIDO') concluidos,
-                coalesce(sum(s.preco) filter (where a.status='CONCLUIDO'),0) valor
+                coalesce(sum(a.valor_acordado) filter (where a.status='CONCLUIDO'),0) valor
             from barbeiro b
-            left join agendamento a on a.barbeiro_id=b.id and a.inicio>=? and a.inicio<?
+            left join agendamento a on a.barbeiro_id=b.id and coalesce(a.concluido_em,a.inicio)>=? and coalesce(a.concluido_em,a.inicio)<?
             left join servico s on s.id=a.servico_id
             where b.barbearia_id=? group by b.id,b.nome order by total desc,b.nome,b.id
             """,(rs,n) -> new PorBarbeiro(rs.getLong("id"),rs.getString("nome"),rs.getLong("total"),rs.getLong("concluidos"),rs.getBigDecimal("valor")),
             inicio.atStartOfDay(),fim.plusDays(1).atStartOfDay(),barbeariaId);
-        var statuses=jdbc.query("select status,count(*) quantidade from agendamento where barbearia_id=? and inicio>=? and inicio<? group by status order by status",
+        var statuses=jdbc.query("select status,count(*) quantidade from agendamento where barbearia_id=? and coalesce(concluido_em,inicio)>=? and coalesce(concluido_em,inicio)<? group by status order by status",
             (rs,n) -> new PorStatus(rs.getString(1),rs.getLong(2)),barbeariaId,inicio.atStartOfDay(),fim.plusDays(1).atStartOfDay());
         var resumo=new Resumo(clientes,barbeiros,servicos,assinaturas,
             rows.stream().mapToLong(PorBarbeiro::agendamentos).sum(),rows.stream().mapToLong(PorBarbeiro::concluidos).sum(),
-            rows.stream().map(PorBarbeiro::valorServicosConcluidos).reduce(BigDecimal.ZERO,BigDecimal::add));
+            rows.stream().map(PorBarbeiro::valorServicosConcluidos).reduce(BigDecimal.ZERO,BigDecimal::add),
+            jdbc.queryForObject("select count(*) from agendamento where barbearia_id=? and status='CONCLUIDO' and valor_estimado=true and concluido_em>=? and concluido_em<?",Long.class,barbeariaId,inicio.atStartOfDay(),fim.plusDays(1).atStartOfDay()));
         return new Relatorio(resumo,rows,statuses);
     }
     private long contar(String sql,Long id) { return jdbc.queryForObject(sql,Long.class,id); }

@@ -23,6 +23,7 @@ public class LocalDemoApplication {
         properties.add("--spring.flyway.locations=classpath:db/migration,classpath:db/demo");
         properties.add("--server.address=127.0.0.1");
         properties.add("--server.port="+System.getProperty("barberflow.port","8080"));
+        properties.add("--barberflow.demo-acessos=true");
         SpringApplication.run(BarberFlowApplication.class,properties.toArray(String[]::new));
     }
 }

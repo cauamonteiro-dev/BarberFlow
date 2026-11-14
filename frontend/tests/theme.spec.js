@@ -1,5 +1,9 @@
+import { loginRequest } from "./helpers";
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
+test.beforeEach(async ({ context }) => {
+  await loginRequest(context.request);
+});
 
 test("identidade visual e tema persistem entre telas, recargas e abas", async ({
   page,

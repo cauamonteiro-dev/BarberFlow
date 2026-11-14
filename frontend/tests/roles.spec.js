@@ -1,0 +1,227 @@
+import { test, expect } from "@playwright/test";
+import { loginRequest } from "./helpers";
+import fs from "node:fs";
+
+test("cliente cadastra acesso, reserva, remarca e cancela no próprio portal", async ({
+  page,
+  request,
+  playwright,
+}) => {
+  const headers = await loginRequest(request);
+  const shop = await (
+    await request.post("/api/barbearias", {
+      headers,
+      data: { nome: "Teste de perfis " + Date.now(), ativa: true },
+    })
+  ).json();
+  const barber = await (
+    await request.post("/api/barbeiros", {
+      headers,
+      data: {
+        barbeariaId: shop.id,
+        nome: "Profissional do portal",
+        status: "ATIVO",
+      },
+    })
+  ).json();
+  const service = await (
+    await request.post("/api/servicos", {
+      headers,
+      data: {
+        barbeariaId: shop.id,
+        nome: "Corte do portal",
+        preco: 65,
+        duracaoMin: 30,
+        status: "ATIVO",
+      },
+    })
+  ).json();
+  try {
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "Acesse seu espaço" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Sou cliente e quero me cadastrar" })
+      .click();
+    await page.getByLabel("Nome", { exact: true }).fill("Cliente Portal");
+    await page
+      .getByLabel("E-mail", { exact: true })
+      .fill("portal." + Date.now() + "@example.com");
+    await page.getByLabel("Senha", { exact: true }).fill("Portal!2026teste");
+    await page.getByRole("button", { name: "Criar conta e entrar" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Meus agendamentos" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Acessos e horários" }),
+    ).toHaveCount(0);
+    await page.getByLabel("Selecionar barbearia").selectOption(String(shop.id));
+    await page
+      .getByRole("button", { name: "Novo agendamento", exact: true })
+      .click();
+    await page
+      .getByRole("combobox", { name: "Barbeiro", exact: true })
+      .selectOption(String(barber.id));
+    await page
+      .getByRole("combobox", { name: "Serviço", exact: true })
+      .selectOption(String(service.id));
+    const day = new Date();
+    do {
+      day.setDate(day.getDate() + 1);
+    } while (day.getDay() !== 1);
+    const dayText = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+    await page.getByLabel("Dia", { exact: true }).fill(dayText);
+    const slots = page.getByRole("combobox", {
+      name: "Horário disponível",
+      exact: true,
+    });
+    await expect(slots.locator("option")).not.toHaveCount(1);
+    await slots.selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Salvar agendamento" }).click();
+    await expect(
+      page.getByRole("button", { name: "Remarcar", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Remarcar", exact: true }).click();
+    await expect(slots.locator("option")).not.toHaveCount(1);
+    await slots.selectOption({ index: 2 });
+    await page.getByRole("button", { name: "Salvar agendamento" }).click();
+    fs.mkdirSync("../.local/qa", { recursive: true });
+    await page.screenshot({
+      path: "../.local/qa/portal-cliente.png",
+      fullPage: true,
+    });
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+    await expect(
+      page.getByRole("cell", { name: "Cancelado", exact: true }),
+    ).toBeVisible();
+    const denied = await page.request.get("/api/clientes");
+    expect(denied.status()).toBe(403);
+    await page.getByRole("button", { name: "Sair", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Acesse seu espaço" }),
+    ).toBeVisible();
+  } finally {
+    await request.put("/api/barbearias/" + shop.id, {
+      headers,
+      data: { nome: shop.nome, ativa: false },
+    });
+  }
+});
+
+test("barbeiro vê a própria agenda e o administrador gerencia horários", async ({
+  page,
+  context,
+}) => {
+  await loginRequest(context.request, "barbeiro@barberflow.local");
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Minha agenda", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Meu expediente e bloqueios" }),
+  ).toBeVisible();
+  expect(
+    (await page.request.get("/api/relatorios?barbeariaId=1")).status(),
+  ).toBe(403);
+  fs.mkdirSync("../.local/qa", { recursive: true });
+  await page.screenshot({
+    path: "../.local/qa/portal-barbeiro.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Acesse seu espaço" }),
+  ).toBeVisible();
+  await loginRequest(context.request);
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Acessos e horários", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Acessos e horários", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Profissional dos horários").selectOption({ index: 1 });
+  await expect(
+    page.getByRole("button", { name: "Salvar expediente" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Salvar expediente", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("Alterações salvas");
+  await page.screenshot({
+    path: "../.local/qa/portal-admin.png",
+    fullPage: true,
+  });
+});
+
+test("troca de unidade ignora a resposta atrasada da unidade anterior", async ({
+  page,
+  context,
+}) => {
+  await loginRequest(context.request, "cliente@barberflow.local");
+  let release, requested, finished;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise((resolve) => {
+    requested = resolve;
+  });
+  const completed = new Promise((resolve) => {
+    finished = resolve;
+  });
+  await page.route("**/api/portal/barbearias", (route) =>
+    route.fulfill({
+      json: [
+        { id: 1, nome: "Primeira", ativa: true },
+        { id: 2, nome: "Segunda", ativa: true },
+      ],
+    }),
+  );
+  await page.route("**/api/portal/painel**", async (route) => {
+    const old =
+      new URL(route.request().url()).searchParams.get("barbeariaId") === "1";
+    if (old) {
+      requested();
+      await gate;
+    }
+    await route.fulfill({
+      json: {
+        agendamentos: [],
+        clientes: [],
+        assinaturas: [],
+        barbeiros: [
+          {
+            id: old ? 101 : 102,
+            nome: old ? "Profissional anterior" : "Profissional correto",
+            status: "ATIVO",
+          },
+        ],
+        servicos: [],
+      },
+    });
+    if (old) finished();
+  });
+  await page.goto("/");
+  await started;
+  await expect(
+    page.getByRole("button", { name: "Novo agendamento", exact: true }),
+  ).toBeDisabled();
+  await page.getByLabel("Selecionar barbearia").selectOption("2");
+  await expect(
+    page.getByRole("button", { name: "Novo agendamento", exact: true }),
+  ).toBeEnabled();
+  release();
+  await completed;
+  await page
+    .getByRole("button", { name: "Novo agendamento", exact: true })
+    .click();
+  const select = page.getByRole("combobox", { name: "Barbeiro", exact: true });
+  await expect(
+    select.getByRole("option", { name: "Profissional correto", exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    select.getByRole("option", { name: "Profissional anterior", exact: true }),
+  ).toHaveCount(0);
+});
