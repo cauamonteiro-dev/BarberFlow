@@ -35,3 +35,10 @@ replay_pid*
 **/application-local.yaml
 .DS_Store
 Thumbs.db
+
+# Frontend e ambiente de desenvolvimento
+**/node_modules/
+**/dist/
+**/playwright-report/
+**/test-results/
+.local/

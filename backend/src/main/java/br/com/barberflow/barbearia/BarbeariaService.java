@@ -21,6 +21,14 @@ public class BarbeariaService {
         return BarbeariaResponse.from(repository.save(barbearia));
     }
 
+    @Transactional
+    public BarbeariaResponse atualizar(Long id, BarbeariaRequest request) {
+        Barbearia barbearia = repository.bloquear(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Barbearia não encontrada."));
+        barbearia.atualizar(request.nome(), request.ativa());
+        return BarbeariaResponse.from(barbearia);
+    }
+
     public List<BarbeariaResponse> listar() {
         return repository.findAll(Sort.by("id")).stream()
                 .map(BarbeariaResponse::from)

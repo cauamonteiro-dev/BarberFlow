@@ -26,6 +26,11 @@ public class BarbeariaController {
         return ResponseEntity.created(URI.create("/api/barbearias/" + response.id())).body(response);
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    public BarbeariaResponse atualizar(@PathVariable Long id, @Valid @RequestBody BarbeariaRequest request) {
+        return service.atualizar(id, request);
+    }
+
     @GetMapping
     public List<BarbeariaResponse> listar() {
         return service.listar();

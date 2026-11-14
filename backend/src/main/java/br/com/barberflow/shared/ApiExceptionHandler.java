@@ -38,7 +38,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status, WebRequest request) {
         return handleExceptionInternal(exception,
                 problem(HttpStatus.BAD_REQUEST, "Corpo inválido",
-                        "Envie um JSON válido com nome e ativa, usando os tipos esperados."),
+                        "Envie um JSON válido com os campos e tipos esperados."),
                 headers, status, request);
     }
 
@@ -50,13 +50,18 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
         return problem(HttpStatus.BAD_REQUEST, "Parâmetro inválido",
-                "Informe um identificador numérico válido.");
+                "Confira os identificadores, datas e filtros informados.");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleIntegrity(DataIntegrityViolationException exception) {
         return problem(HttpStatus.CONFLICT, "Operação não permitida",
                 "Os dados violam uma restrição de integridade.");
+    }
+
+    @ExceptionHandler(RegraNegocioException.class)
+    public ProblemDetail handleBusiness(RegraNegocioException exception) {
+        return problem(HttpStatus.CONFLICT, "Regra de negócio", exception.getMessage());
     }
 
     private ProblemDetail problem(HttpStatus status, String title, String detail) {

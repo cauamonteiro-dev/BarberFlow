@@ -1,180 +1,94 @@
-# BarberFlow API — primeira entrega
+# BarberFlow API
 
-Backend acadêmico em Java 21 e Spring Boot 3.5.16. Esta entrega implementa **cadastro e consulta de barbearias**, com PostgreSQL e validação dos dados. Os demais módulos e a interface React serão desenvolvidos nas próximas entregas.
+Java 21, Spring Boot 3.5.16, Spring Data JPA, Bean Validation, Flyway e PostgreSQL 18.6.
 
-## 1. Abrir no IntelliJ
+## Execução rápida
 
-1. No GitHub Desktop, selecione o repositório BarberFlow e clique em **Fetch origin**.
-2. Em **Current branch**, selecione `feat/backend-barbearias`. Essa é a branch da primeira entrega enquanto o pull request estiver aberto. Depois da incorporação, o código também estará em `main`.
-3. No IntelliJ, clique em **File → Open** e selecione `backend/pom.xml`. Escolha abrir como projeto Maven, se solicitado.
-4. Aguarde a importação das dependências. Em **File → Project Structure → Project SDK**, selecione o JDK 21. O SDK pode aparecer apenas em **Project Settings → Project**, dependendo da versão.
+Na raiz do repositório: `powershell -ExecutionPolicy Bypass -File .\scripts\backend-local.ps1`.
 
-O Maven Wrapper (`mvnw` e `mvnw.cmd`) fixa o Maven 3.9.11. A primeira execução precisa de internet para baixar o Maven e as dependências.
+O launcher de desenvolvimento `LocalDemoApplication`, em `src/test/java`, inicia um PostgreSQL persistente e isolado em `.local/postgres`, porta 55432, com as migrações e os dados fictícios. Essa classe e a dependência de PostgreSQL embarcado não entram no JAR de produção. O JAR usa seu PostgreSQL configurado por variáveis.
 
-## 2. Criar um banco de desenvolvimento separado
+Linux/macOS, usuário comum (não root): `./mvnw spring-boot:test-run -Dspring-boot.run.main-class=br.com.barberflow.LocalDemoApplication`, dentro de `backend`. No Windows o script configura o JDK; alternativamente use `mvnw.cmd` com o mesmo objetivo Maven.
 
-No pgAdmin, abra o **Query Tool** conectado ao banco `postgres` e execute somente:
+## Usar o PostgreSQL instalado / IntelliJ
 
-```sql
-CREATE DATABASE barberflow_dev;
-```
+1. Crie **um banco de desenvolvimento vazio**, por exemplo `CREATE DATABASE barberflow_dev;`, no pgAdmin, fora de uma transação. Preserve o banco acadêmico existente.
+2. Abra `backend/pom.xml` no IntelliJ e selecione JDK 21.
+3. Na configuração de execução de `BarberFlowApplication`, defina `DB_URL`, `DB_USERNAME` e `DB_PASSWORD`, conforme `.env.example`. Não versione credenciais. O arquivo `.env` não é carregado automaticamente pelo Spring.
+4. Execute a aplicação. O Flyway cria as oito tabelas; Hibernate valida o schema (`ddl-auto=validate`). Não importe manualmente os scripts originais nesse banco.
 
-Esse comando deve ser executado fora de um bloco de transação. Se o banco já existir, não o crie novamente. Para a primeira execução da API, utilize um banco vazio.
-
-**Não execute os scripts acadêmicos manualmente em `barberflow_dev`.** O Flyway criará as oito tabelas usando a migração derivada do modelo físico. O banco acadêmico `barberflow` e os scripts originais em `docs/.gitbook/assets/` são preservados.
-
-O Flyway registra o que executou em `flyway_schema_history`. O Hibernate usa `ddl-auto: validate`: confere o mapeamento, sem criar ou modificar tabelas automaticamente. Não edite uma migração já aplicada; mudanças futuras devem ter novas versões.
-
-O Flyway está fixado em 11.20.3 para o uso com PostgreSQL 18. O PostgreSQL temporário dos testes é 18.6.
-
-## 3. Configurar e executar
-
-Abra `src/main/java/br/com/barberflow/BarberFlowApplication.java`. Execute uma vez pelo botão verde ao lado de `main`, para criar a configuração de execução. A inicialização precisa das credenciais a seguir.
-
-Em **Run → Edit Configurations**, selecione a execução de `BarberFlowApplication`. Procure **Environment variables**; pode ser necessário habilitar o campo em **Modify options**. Configure:
-
-| Variável | Valor |
-| --- | --- |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/barberflow_dev` |
-| `DB_USERNAME` | Seu usuário PostgreSQL, normalmente `postgres` |
-| `DB_PASSWORD` | Sua senha PostgreSQL |
-
-Salve e execute novamente. URL e usuário têm os valores padrão acima; a senha deve ser informada. Mantenha essa configuração local no IntelliJ.
-
-Alternativa pelo PowerShell, no diretório `backend`:
+PowerShell:
 
 ```powershell
-$env:DB_URL = 'jdbc:postgresql://localhost:5432/barberflow_dev'
-$env:DB_USERNAME = 'postgres'
-$env:DB_PASSWORD = Read-Host 'Senha do PostgreSQL'
+$env:JAVA_HOME='C:\Program Files\Java\jdk-21'
+$env:DB_URL='jdbc:postgresql://localhost:5432/barberflow_dev'
+$env:DB_USERNAME='postgres'
+$credencial=Get-Credential -UserName postgres -Message 'Credencial do PostgreSQL de desenvolvimento'
+$env:DB_PASSWORD=$credencial.GetNetworkCredential().Password
 .\mvnw.cmd spring-boot:run
 ```
 
-`Read-Host` acima lê texto visível; para ocultar a digitação no PowerShell 7, use `Read-Host -MaskInput 'Senha do PostgreSQL'`. As variáveis valem para o processo e seus filhos; não são gravadas nos arquivos do projeto.
+Para popular **um banco novo e vazio** com os dados fictícios, adicione `SPRING_PROFILES_ACTIVE=demo`. Não ative o perfil demo em um banco com cadastros próprios: os IDs explícitos podem conflitar. Mantenha o perfil nas próximas execuções desse banco. Se já utilizou o modo automático, continue com o script local, que seleciona sempre as duas migrações.
 
-No Linux/macOS, use `./mvnw spring-boot:run` com as mesmas variáveis de ambiente. Ao encerrar a sessão de trabalho, você pode remover a senha do PowerShell com `Remove-Item Env:DB_PASSWORD`.
+## API REST
 
-A API escuta em `http://localhost:8080`. Acesse **`/api/barbearias`**, pois ainda não existe uma página inicial. Se a porta estiver ocupada, defina `SERVER_PORT=8081` e ajuste as URLs dos testes.
+Base: `http://127.0.0.1:8080/api`. `POST` retorna 201 com `Location`; `GET` e `PUT` retornam 200. Erros seguem Problem Details: 400 para formatos/validações, 404 para recurso ausente e 409 para conflitos ou restrições de integridade.
 
-## 4. Usar os 200 registros de demonstração (opcional)
+| Recurso | Rotas |
+| --- | --- |
+| Barbearias | GET/POST `/barbearias`, GET/PUT `/barbearias/{id}` |
+| Clientes globais | GET/POST `/clientes`, GET/PUT `/clientes/{id}`; filtro opcional `barbeariaId` na lista |
+| Cliente e vínculo atômicos | POST `/barbearias/{id}/clientes/cadastro`, PUT `/barbearias/{id}/clientes/cadastro/{clienteId}` |
+| Vínculos | GET/PUT `/barbearias/{id}/clientes`; PUT cria ou atualiza a mesma dupla |
+| Barbeiros, serviços, planos | GET/POST `/{recurso}`, GET/PUT `/{recurso}/{id}` |
+| Agendamentos | GET/POST `/agendamentos`, GET/PUT `/agendamentos/{id}` |
+| Disponibilidade | GET `/disponibilidade?barbeariaId=1&barbeiroId=1&servicoId=1&inicio=2027-01-10T10:00:00` |
+| Assinaturas | GET/POST `/assinaturas`, GET/PUT `/assinaturas/{id}` |
+| Relatórios | GET `/relatorios?barbeariaId=1&de=2027-01-01&ate=2027-12-31` |
 
-Para iniciar um **banco vazio** com o povoamento, acrescente `SPRING_PROFILES_ACTIVE=demo` às variáveis da execução. No PowerShell:
+As listas de barbeiros, serviços, planos, agendamentos e assinaturas exigem `barbeariaId`. A agenda aceita `de`, `ate` (datas inclusivas) e `status`. A disponibilidade aceita `ignorarId` para editar uma reserva. O resultado é indicativo; salvar repete a validação dentro da transação.
 
-```powershell
-$env:SPRING_PROFILES_ACTIVE = 'demo'
-.\mvnw.cmd spring-boot:run
-```
+### Corpos de exemplo
 
-O Flyway aplicará V1 (estrutura) e V2 (200 registros), uma vez cada. Reiniciar no perfil demo não duplica os registros. Mantenha esse perfil nas próximas inicializações desse banco. Ele é destinado aos dados fictícios de demonstração.
-
-Se já cadastrou dados pela API no banco sem o perfil demo, não ative o povoamento nesse banco: os IDs explícitos do script podem conflitar. Para experimentar a demonstração, crie outro banco vazio, por exemplo `barberflow_demo`, e ajuste `DB_URL`. Não apague seu banco acadêmico.
-
-## 5. Testar a API
-
-| Método | Endpoint | Resultado esperado |
-| --- | --- | --- |
-| `POST` | `/api/barbearias` | `201 Created`, objeto cadastrado e cabeçalho `Location` |
-| `GET` | `/api/barbearias` | `200 OK`, lista ordenada por ID, incluindo ativas e inativas |
-| `GET` | `/api/barbearias/{id}` | `200 OK` ou `404 Not Found` |
-
-O corpo de cadastro tem `nome` (obrigatório, até 100 caracteres após remoção de espaços nas pontas) e `ativa` (booleano obrigatório). Não envie `id`; ele é gerado pelo PostgreSQL.
-
-### Pelo PowerShell
-
-```powershell
-$body = @{ nome = 'BarberFlow Nova Lima'; ativa = $true } | ConvertTo-Json
-$nova = Invoke-RestMethod -Method Post `
-    -Uri 'http://localhost:8080/api/barbearias' `
-    -ContentType 'application/json; charset=utf-8' -Body $body
-$nova
-Invoke-RestMethod 'http://localhost:8080/api/barbearias'
-Invoke-RestMethod "http://localhost:8080/api/barbearias/$($nova.id)"
-```
-
-No Postman, use o mesmo endpoint de cadastro, **Body → raw → JSON**:
+Cliente com vínculo (POST na rota da barbearia):
 
 ```json
-{
-  "nome": "BarberFlow Nova Lima",
-  "ativa": true
-}
+{"nome":"Maria","telefone":"31999990000","email":"maria@example.com","status":"ATIVO"}
 ```
 
-O arquivo [requests/barbearias.http](requests/barbearias.http) também contém exemplos, caso sua edição do IntelliJ ofereça cliente HTTP.
+Barbeiro: `{"barbeariaId":1,"nome":"João","status":"ATIVO"}`.
 
-### Validação e persistência
+Serviço: `{"barbeariaId":1,"nome":"Corte","preco":40.00,"duracaoMin":30,"status":"ATIVO"}`.
 
-1. Cadastre a barbearia e anote seu ID.
-2. Consulte a lista e depois o ID recebido.
-3. Conecte o Query Tool ao **`barberflow_dev`** e execute `SELECT id, nome, ativa FROM barbearia ORDER BY id;`.
-4. Pare e reinicie a aplicação. Consulte o mesmo ID: os dados devem continuar no banco.
-5. Envie `"nome": "   "`: a API deve retornar `400`, com indicação do campo inválido, sem salvar.
-6. Omita `ativa` ou envie `null`: deve retornar `400`. O valor `false` é válido.
-7. Consulte um ID inexistente: deve retornar `404`.
+Plano: `{"barbeariaId":1,"nome":"Mensal","preco":99.90,"status":"ATIVO"}`.
 
-Exemplo de erro de validação (o campo `instance` identifica a rota):
+Agendamento (use IDs ativos e vinculados do seu banco; o término é calculado):
 
 ```json
-{
-  "type": "about:blank",
-  "title": "Dados inválidos",
-  "status": 400,
-  "detail": "Confira os campos informados.",
-  "instance": "/api/barbearias",
-  "errors": { "nome": "O nome é obrigatório." }
-}
+{"barbeariaId":1,"clienteId":1,"barbeiroId":1,"servicoId":1,"inicio":"2027-01-10T10:00:00","status":"AGENDADO"}
 ```
 
-## 6. Entender o código em 1 hora
+Assinatura:
 
-| Tempo | Atividade |
-| --- | --- |
-| 10 min | Leia esta página e abra `BarbeariaController`: encontre as três rotas. |
-| 15 min | Configure as variáveis e inicie a API; execute o cadastro. |
-| 15 min | Consulte o registro pela API e no pgAdmin; reinicie e confira a persistência. |
-| 10 min | Siga a chamada de `cadastrar` do controller ao service e ao repository. |
-| 10 min | Teste um nome vazio e explique por que a resposta é `400`. |
-
-Fluxo do cadastro:
-
-1. **Controller:** recebe o JSON e aciona a validação do `BarbeariaRequest`.
-2. **DTO de entrada:** descreve os campos aceitos. `@NotBlank` impede nome nulo ou em branco; `@NotNull` exige o status.
-3. **Service:** coordena a operação dentro de uma transação.
-4. **Repository:** oferece `save`, `findAll` e `findById` por meio do Spring Data JPA.
-5. **Entidade:** `Barbearia` mapeia a tabela e a geração do ID.
-6. **DTO de saída:** define o JSON devolvido, sem expor a entidade diretamente.
-
-Exercício: cadastre uma barbearia com `ativa=false`. O cadastro deve funcionar. Explique a diferença entre um booleano `false` e um campo ausente (`null`).
-
-## 7. Testes automatizados
-
-No PowerShell, dentro de `backend`:
-
-```powershell
-.\mvnw.cmd verify
+```json
+{"clienteId":1,"planoId":1,"dataInicio":"2027-01-01","dataFim":"2027-12-31","status":"ATIVA"}
 ```
 
-Linux/macOS: `./mvnw verify`.
+O `PUT` envia os mesmos campos completos do `POST`, sem `id` nem campos calculados. O vínculo usa `{"clienteId":1,"status":"ATIVO"}`. A barbearia usa `{"nome":"Central","ativa":true}`. Status: cadastro `ATIVO/INATIVO`; agenda `AGENDADO/CONFIRMADO/CONCLUIDO/CANCELADO`; assinatura `ATIVA/ENCERRADA/CANCELADA`.
 
-Os testes iniciam um PostgreSQL 18 temporário e isolado. Não usam seu `DB_URL`, suas credenciais ou seu banco pessoal, nem exigem Docker. Precisam de internet na primeira execução e de permissão para iniciar processos locais; no Linux, execute como usuário comum, pois o PostgreSQL não inicia como root.
+## Organização e transações
 
-São verificadas as rotas, as validações, a persistência, a criação das oito tabelas, a execução única das migrações e os 200 registros do perfil demo. Relatórios: `target/surefire-reports/`.
+- `barbearia`: módulo original com DTOs, controller, service e repository, ampliado com edição.
+- `dominio`: entidades e repositórios dos demais recursos; apenas campos escalares, sem carregamento implícito de grafos JPA na API.
+- `gestao/Entradas`: contratos validados de entrada; identificadores não são aceitos no corpo de cadastro.
+- `GestaoController`: rotas REST; `GestaoService`: vínculos, status, compatibilidade, duração e controle transacional.
+- `RelatorioController`: consultas SQL parametrizadas com JOIN, GROUP BY, COUNT, SUM e ordenação.
+- `shared`: respostas de erro e exceções de domínio.
 
-## 8. Problemas comuns
+O lock pessimista na barbearia dura até o commit/rollback, serializando as operações relacionadas por unidade. Isso protege a checagem de conflito mesmo com várias instâncias da API; outras unidades continuam independentes. O banco continua exigindo PK, FK, unicidade e CHECK. Gravações SQL fora da aplicação não recebem todas as validações de domínio.
 
-| Sintoma | Conferir |
-| --- | --- |
-| Falha de autenticação | Usuário e senha nas variáveis da execução |
-| Banco inexistente | Criação de `barberflow_dev` e valor de `DB_URL` |
-| Conexão recusada | Serviço PostgreSQL iniciado e porta correta |
-| Schema não vazio sem histórico Flyway | Use um banco de desenvolvimento vazio. Não habilite baseline automático para contornar o erro. |
-| Erro na porta 8080 | Outro backend aberto; encerre-o ou configure `SERVER_PORT` |
-| Página 404 na raiz | Use `http://localhost:8080/api/barbearias` |
+## Testes e diagnóstico
 
-Esta entrega é para desenvolvimento local: ainda não implementa autenticação, permissões ou a interface React. O servidor usa apenas a interface local por padrão. A logo será incorporada quando iniciarmos a identidade visual.
+Execute `mvnw.cmd verify` (ou `./mvnw verify`). Usa PostgreSQL real temporário em porta aleatória, sem Docker e sem consultar seu banco pessoal. Inclui testes concorrentes, rollback, restrições, 15 consultas SQL, oito tabelas, seed e fluxos REST. Relatórios em `target/surefire-reports`. O agente Mockito é configurado explicitamente para evitar problemas de anexação dinâmica no Windows.
 
-## Referências técnicas
-
-- [Spring Boot — requisitos](https://docs.spring.io/spring-boot/3.5/system-requirements.html)
-- [Flyway — migrações](https://documentation.red-gate.com/flyway)
-- [PostgreSQL temporário para testes](https://github.com/zonkyio/embedded-postgres)
+Portas em uso: pare a instância anterior antes de reiniciar o modo local. Para o PostgreSQL instalado, falhas de conexão exigem conferir banco, serviço e credenciais; schema existente sem histórico Flyway exige um banco vazio, sem ativar baseline para contornar o problema. A raiz `/` da API não contém interface: abra o Vite em 5173.

@@ -29,6 +29,11 @@ public class Barbearia {
         this.ativa = ativa;
     }
 
+    public void atualizar(String nome, boolean ativa) {
+        this.nome = nome;
+        this.ativa = ativa;
+    }
+
     public Long getId() {
         return id;
     }
