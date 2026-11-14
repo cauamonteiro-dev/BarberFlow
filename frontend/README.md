@@ -24,3 +24,16 @@ Interface responsiva, navegação por teclado, labels nos campos, formulário mo
 ## Testes de navegador
 
 Com backend e frontend iniciados, execute na raiz `scripts/testar-interface.ps1`. Linux/macOS: `npx playwright install chromium` e `npm run test:e2e`. Os testes utilizam a API real, criam uma unidade com nome de teste e a inativam após a execução. Eles devem ser executados no banco local de demonstração. Evidências e traces de falha ficam em `test-results`; screenshots locais em `.local/qa` na raiz. O script Windows mantém o Chromium em `.local/browsers`, para evitar downloads repetidos entre sessões.
+
+
+## Identidade visual e temas
+
+A identidade parte da logo principal fornecida pelo autor: azul-marinho `#1B2936`, dourado `#D4B480` e branco quente `#FCFAF8`. O PNG original é preservado em `public/brand/barberflow.png`; a imagem completa aparece no painel e seu emblema é enquadrado por CSS na navegação, sem modificar o arquivo.
+
+As cores da interface usam variáveis semânticas em `src/style.css`, com superfícies, textos, bordas e estados próprios para os temas claro e escuro. Verde/vermelho permanecem reservados aos estados de sucesso/erro, acompanhados de texto. A identidade mantém as fontes locais DM Sans e Manrope.
+
+O botão **Modo escuro** no topo alterna os temas. Sem escolha salva, a plataforma segue `prefers-color-scheme` e acompanha as mudanças do sistema. A escolha manual fica em `localStorage` (`barberflow.theme`), persiste após recarga e sincroniza entre abas. Se o armazenamento estiver bloqueado, a alternância continua funcionando na sessão.
+
+Um script curto no `index.html` aplica o tema antes de carregar a interface, evitando um primeiro quadro com o tema incorreto. `useTheme.js` centraliza a preferência; `ThemeToggle.jsx` expõe um botão com estado acessível por `aria-pressed`. O atributo `color-scheme` também adapta os controles nativos e a meta `theme-color` acompanha o fundo da aplicação.
+
+Os testes em `tests/theme.spec.js` verificam logo carregada, temas em painéis/formulários, persistência, sincronização entre abas, preferência do sistema, armazenamento bloqueado e layouts móveis. A suíte completa da interface agora contém cinco testes. Screenshots dos temas ficam em `.local/qa/brand-*`.

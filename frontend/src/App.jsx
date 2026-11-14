@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "./api";
+import { useTheme } from "./useTheme";
+import ThemeToggle from "./ThemeToggle";
 
 const pages = [
   ["resumo", "Visão geral", "◈"],
@@ -98,6 +100,7 @@ function Badge({ value }) {
 }
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
   const [page, setPage] = useState("resumo"),
     [shops, setShops] = useState([]),
     [shop, setShop] = useState(
@@ -442,14 +445,17 @@ export default function App() {
         <a
           href="#"
           className="brand"
+          aria-label="BarberFlow — início"
           onClick={(e) => {
             e.preventDefault();
             navigate("resumo");
           }}
         >
-          <span className="brand-mark">✂</span>
+          <span className="brand-mark" aria-hidden="true">
+            <img src="/brand/barberflow.png" alt="" width="146" height="146" />
+          </span>
           <span>
-            barber<span className="brand-light">flow</span>
+            Barber<span className="brand-light">Flow</span>
             <small>GESTÃO COM ESTILO</small>
           </span>
         </a>
@@ -460,6 +466,7 @@ export default function App() {
               key={id}
               className={page === id ? "nav active" : "nav"}
               aria-current={page === id ? "page" : undefined}
+              title={label}
               onClick={() => navigate(id)}
             >
               <span aria-hidden="true">{icon}</span>
@@ -501,6 +508,7 @@ export default function App() {
                 </option>
               ))}
             </select>
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
             <span className="avatar small">BF</span>
           </div>
         </header>
@@ -598,8 +606,9 @@ export default function App() {
                           CADA DETALHE FAZ A DIFERENÇA
                         </span>
                         <h2>
-                          Mais tempo para fazer
-                          <br />o que você faz de melhor.
+                          Excelência em cada corte.
+                          <br />
+                          Controle em cada detalhe.
                         </h2>
                         <p>
                           {selected?.nome} •{" "}
@@ -608,19 +617,13 @@ export default function App() {
                           }).format(new Date())}
                         </p>
                       </div>
-                      <div className="welcome-art" aria-hidden="true">
-                        <span>✂</span>
-                        <div>
-                          EST.
-                          <br />
-                          <b>
-                            BARBER
-                            <br />
-                            FLOW
-                          </b>
-                          <br />
-                          CUIDADO EM CADA CORTE
-                        </div>
+                      <div className="welcome-art">
+                        <img
+                          src="/brand/barberflow.png"
+                          alt="Logo principal BarberFlow, em azul-marinho e dourado"
+                          width="1254"
+                          height="1254"
+                        />
                       </div>
                     </div>
                   )}
