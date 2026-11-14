@@ -1,0 +1,263 @@
+.account-bar {
+  margin-left: 242px;
+  padding: 12px 42px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.account-bar > span {
+  margin-right: auto;
+}
+.account-bar small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 3px;
+}
+.account-role {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.account-bar select,
+.page-heading > select,
+.panel-heading select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+  max-width: 240px;
+}
+.session-error {
+  margin-left: 260px;
+}
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--surface);
+}
+.auth-brand {
+  background: linear-gradient(140deg, #101e2a, #24394d);
+  color: #f9f7f1;
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.auth-brand > img {
+  width: 210px;
+  max-width: 100%;
+  border-radius: 15px;
+  border: 1px solid #d4b480;
+}
+.auth-brand h1 {
+  font:
+    750 40px/1.3 "Manrope Variable",
+    sans-serif;
+  letter-spacing: -1.5px;
+}
+.auth-brand p {
+  color: #bdcad6;
+  font-size: 14px;
+}
+.auth-form {
+  padding: 70px clamp(25px, 7vw, 110px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+}
+.auth-theme {
+  position: absolute;
+  right: 25px;
+  top: 25px;
+}
+.auth-form h2 {
+  font:
+    750 28px "Manrope Variable",
+    sans-serif;
+  margin: 0 0 12px;
+}
+.auth-form > p:not(.eyebrow) {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+.auth-form form {
+  display: grid;
+  gap: 20px;
+}
+.auth-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.auth-form input {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 13px;
+  border-radius: 7px;
+  font: inherit;
+  width: 100%;
+}
+.auth-form small {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.auth-form .primary {
+  font-size: 13px;
+  padding: 13px;
+}
+.auth-form .text-button {
+  margin-top: 20px;
+  text-align: left;
+  font-size: 12px;
+}
+.portal-rail p {
+  color: #bdcad6;
+  font-size: 12px;
+  line-height: 1.8;
+  padding: 15px;
+}
+.portal-section {
+  margin-top: 25px;
+  margin-bottom: 25px;
+}
+.portal-form {
+  margin-bottom: 25px;
+}
+.portal-form > h2 {
+  padding: 25px;
+  margin-bottom: 0;
+}
+.row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.schedule-editor,
+.schedule-summary {
+  padding: 22px;
+  display: grid;
+  gap: 14px;
+}
+.schedule-summary span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.schedule-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.schedule-row label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+}
+.schedule-row input,
+.schedule-row select {
+  padding: 9px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  font: inherit;
+}
+.portal-rail .brand {
+  color: #fff;
+}
+.portal-form .form-fields {
+  max-height: none;
+}
+@media (max-width: 1150px) {
+  .account-bar {
+    margin-left: 210px;
+    padding: 12px 25px;
+  }
+}
+@media (max-width: 850px) {
+  .account-bar {
+    margin-left: 72px;
+    padding: 12px 20px;
+  }
+  .portal-rail p {
+    display: none;
+  }
+  .auth-brand {
+    padding: 35px;
+  }
+  .auth-brand h1 {
+    font-size: 30px;
+  }
+  .auth-brand > img {
+    width: 160px;
+  }
+  .session-error {
+    margin-left: 85px;
+  }
+}
+@media (max-width: 620px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
+  .auth-brand {
+    padding: 30px;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+  }
+  .auth-brand > img {
+    width: 85px;
+  }
+  .auth-brand h1 {
+    font-size: 20px;
+    letter-spacing: -0.5px;
+  }
+  .auth-brand p {
+    display: none;
+  }
+  .auth-form {
+    padding: 85px 25px 35px;
+  }
+  .account-bar {
+    gap: 8px;
+    padding: 10px 15px;
+  }
+  .account-bar > span {
+    width: 100%;
+  }
+  .account-role {
+    font-size: 11px;
+  }
+  .account-bar .secondary {
+    font-size: 10px;
+    padding: 8px;
+  }
+  .schedule-row {
+    gap: 8px;
+  }
+  .account-bar select {
+    max-width: 140px;
+  }
+}
+
+.report-note {
+  padding: 16px 24px !important;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}

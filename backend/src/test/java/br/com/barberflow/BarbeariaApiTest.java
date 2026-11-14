@@ -45,7 +45,14 @@ class BarbeariaApiTest {
 
     @BeforeEach
     void cleanData() {
-        jdbc.execute("TRUNCATE barbearia, cliente RESTART IDENTITY CASCADE");
+        jdbc.execute("TRUNCATE usuario, barbearia, cliente RESTART IDENTITY CASCADE");
+        jdbc.update("insert into usuario(nome,email,senha_hash) values ('Teste','admin-test@barberflow.local','unused')");
+    }
+
+    private org.springframework.test.web.servlet.ResultActions perform(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request) throws Exception {
+        jdbc.update("insert into permissao(usuario_id,barbearia_id,perfil) select 1,id,'ADMIN' from barbearia on conflict do nothing");
+        return mvc.perform(request.with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin-test@barberflow.local"))
+            .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()));
     }
 
     @Test
@@ -63,7 +70,8 @@ class BarbeariaApiTest {
 
     @Test
     void createsTrimsPersistsAndRetrievesBarbearia() throws Exception {
-        String body = mvc.perform(post("/api/barbearias")
+        jdbc.update("insert into barbearia(id,nome,ativa) values (-1,'Unidade do administrador',true)");
+        String body = perform(post("/api/barbearias")
                         .contentType("application/json")
                         .content(""" 
                                 {"nome":"  BarberFlow Nova Lima  ","ativa":true}
@@ -76,7 +84,7 @@ class BarbeariaApiTest {
         JsonNode created = mapper.readTree(body);
         assertThat(jdbc.queryForObject("SELECT nome FROM barbearia WHERE id = ?",
                 String.class, created.get("id").asLong())).isEqualTo("BarberFlow Nova Lima");
-        mvc.perform(get("/api/barbearias/1"))
+        perform(get("/api/barbearias/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("id").value(1))
                 .andExpect(jsonPath("nome").value("BarberFlow Nova Lima"));
@@ -86,7 +94,7 @@ class BarbeariaApiTest {
     void listsActiveAndInactiveBarbeariasInIdOrder() throws Exception {
         jdbc.update("INSERT INTO barbearia (nome, ativa) VALUES (?, ?)", "Central", true);
         jdbc.update("INSERT INTO barbearia (nome, ativa) VALUES (?, ?)", "Filial", false);
-        mvc.perform(get("/api/barbearias"))
+        perform(get("/api/barbearias"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].nome").value("Central"))
@@ -94,9 +102,9 @@ class BarbeariaApiTest {
     }
 
     @Test
-    void returnsEmptyList() throws Exception {
-        mvc.perform(get("/api/barbearias"))
-                .andExpect(status().isOk()).andExpect(content().json("[]"));
+    void deniesAdministrativeListWithoutAnyShopRole() throws Exception {
+        perform(get("/api/barbearias"))
+                .andExpect(status().isForbidden());
     }
 
     @ParameterizedTest
@@ -106,7 +114,7 @@ class BarbeariaApiTest {
             "{\"nome\":\"Central\"}", "{\"nome\":\"Central\",\"ativa\":null}"
     })
     void rejectsMissingOrBlankFieldsWithoutPersisting(String body) throws Exception {
-        mvc.perform(post("/api/barbearias").contentType("application/json").content(body))
+        perform(post("/api/barbearias").contentType("application/json").content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("errors").isMap());
@@ -115,7 +123,7 @@ class BarbeariaApiTest {
 
     @Test
     void rejectsNamesBeyondDatabaseLimit() throws Exception {
-        mvc.perform(post("/api/barbearias").contentType("application/json")
+        perform(post("/api/barbearias").contentType("application/json")
                         .content(mapper.writeValueAsString(java.util.Map.of("nome", "A".repeat(101), "ativa", true))))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("errors.nome").exists());
     }
@@ -124,20 +132,20 @@ class BarbeariaApiTest {
     @ValueSource(strings = {"{", "{\"nome\":\"Central\",\"ativa\":true,\"id\":99}",
             "{\"nome\":\"Central\",\"ativa\":{}}"})
     void rejectsMalformedOrUnexpectedJson(String body) throws Exception {
-        mvc.perform(post("/api/barbearias").contentType("application/json").content(body))
+        perform(post("/api/barbearias").contentType("application/json").content(body))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("status").value(400));
     }
 
     @Test
-    void returnsNotFoundForUnknownId() throws Exception {
-        mvc.perform(get("/api/barbearias/999"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("detail").value("Barbearia não encontrada."));
+    void deniesUnassignedShopWithoutDisclosingExistence() throws Exception {
+        perform(get("/api/barbearias/999"))
+                .andExpect(status().isForbidden())
+                ;
     }
 
     @Test
     void rejectsNonNumericId() throws Exception {
-        mvc.perform(get("/api/barbearias/abc"))
+        perform(get("/api/barbearias/abc"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("status").value(400));
     }
 
@@ -151,7 +159,7 @@ class BarbeariaApiTest {
         String url = POSTGRES.getJdbcUrl("postgres", "barberflow_demo_test");
         Flyway demo = Flyway.configure().dataSource(url, "postgres", "postgres")
                 .locations("classpath:db/migration", "classpath:db/demo").load();
-        assertThat(demo.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(demo.migrate().migrationsExecuted).isEqualTo(3);
         assertThat(demo.migrate().migrationsExecuted).isZero();
         try (Connection connection = java.sql.DriverManager.getConnection(url, "postgres", "postgres");
              Statement statement = connection.createStatement()) {
@@ -180,6 +188,7 @@ class BarbeariaApiTest {
         jdbc.update("INSERT INTO cliente_barbearia(cliente_id,barbearia_id,status) VALUES (1,1,'ATIVO'),(1,2,'ATIVO')");
         jdbc.update("INSERT INTO barbeiro(id,barbearia_id,nome,status) VALUES (1,1,'João','ATIVO'),(2,2,'Pedro','ATIVO')");
         jdbc.update("INSERT INTO servico(id,barbearia_id,nome,preco,duracao_min,status) VALUES (1,1,'Corte',40,30,'ATIVO'),(2,2,'Barba',25,20,'ATIVO')");
+        jdbc.update("insert into expediente(barbeiro_id,dia_semana,inicio,fim) select b.id,d,'00:00'::time,'23:59:59'::time from barbeiro b cross join generate_series(1,7) d");
         jdbc.execute("select setval(pg_get_serial_sequence('cliente','id'),2,true)");
         jdbc.update("INSERT INTO plano(id,barbearia_id,nome,preco,status) VALUES (1,1,'Mensal',100,'ATIVO'),(2,2,'Premium',150,'ATIVO')");
     }
@@ -191,26 +200,26 @@ class BarbeariaApiTest {
     @Test
     void updatesShopAndPreventsNewBookingsWhenInactive() throws Exception {
         fixture();
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/barbearias/1")
+        perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/barbearias/1")
             .contentType("application/json").content("{\"nome\":\"Central nova\",\"ativa\":false}"))
             .andExpect(status().isOk()).andExpect(jsonPath("ativa").value(false));
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
             .andExpect(status().isConflict());
     }
 
     @Test
     void scopedClientCreationIsAtomicAndValidatesEmail() throws Exception {
         fixture();
-        mvc.perform(post("/api/barbearias/1/clientes/cadastro").contentType("application/json")
+        perform(post("/api/barbearias/1/clientes/cadastro").contentType("application/json")
             .content("{\"nome\":\"Maria\",\"email\":\"maria@exemplo.com\",\"status\":\"ATIVO\"}"))
             .andExpect(status().isCreated());
         assertThat(jdbc.queryForObject("select count(*) from cliente_barbearia where barbearia_id=1",Long.class)).isEqualTo(2);
-        mvc.perform(post("/api/clientes").contentType("application/json").content("{\"nome\":\"Inválido\",\"email\":\"invalido\"}"))
+        perform(post("/api/clientes").contentType("application/json").content("{\"nome\":\"Inválido\",\"email\":\"invalido\"}"))
             .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/clientes").contentType("application/json").content("{\"nome\":\"Duplicado\",\"email\":\"MARIA@EXEMPLO.COM\"}"))
+        perform(post("/api/clientes").contentType("application/json").content("{\"nome\":\"Duplicado\",\"email\":\"MARIA@EXEMPLO.COM\"}"))
             .andExpect(status().isConflict());
         jdbc.update("update barbearia set ativa=false where id=1");
-        mvc.perform(post("/api/barbearias/1/clientes/cadastro").contentType("application/json")
+        perform(post("/api/barbearias/1/clientes/cadastro").contentType("application/json")
             .content("{\"nome\":\"Não persistir\",\"status\":\"ATIVO\"}"))
             .andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("select count(*) from cliente where nome='Não persistir'",Long.class)).isZero();
@@ -221,7 +230,7 @@ class BarbeariaApiTest {
         fixture();
         Long original=jdbc.queryForObject("select id from cliente_barbearia where cliente_id=1 and barbearia_id=1",Long.class);
         for(String value: new String[]{"INATIVO","ATIVO","ATIVO"}) {
-            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/barbearias/1/clientes")
+            perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/barbearias/1/clientes")
                 .contentType("application/json").content("{\"clienteId\":1,\"status\":\""+value+"\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("id").value(original));
         }
@@ -233,25 +242,25 @@ class BarbeariaApiTest {
     @ValueSource(strings={"09:45","10:00","10:15"})
     void rejectsEveryOverlappingInterval(String start) throws Exception {
         fixture();
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
             .andExpect(status().isCreated()).andExpect(jsonPath("fim").value("2027-01-10T10:30:00"));
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking(start,"CONFIRMADO")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking(start,"CONFIRMADO")))
             .andExpect(status().isConflict()).andExpect(jsonPath("detail").value("O barbeiro já possui um agendamento nesse intervalo."));
     }
 
     @Test
     void permitsAdjacentBookingsAndReusesCancelledSlot() throws Exception {
         fixture();
-        var body=mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
+        var body=perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
             .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long id=mapper.readTree(body).get("id").asLong();
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:30","AGENDADO")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking("10:30","AGENDADO")))
             .andExpect(status().isCreated());
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/agendamentos/"+id)
+        perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/agendamentos/"+id)
             .contentType("application/json").content(booking("10:00","CANCELADO"))).andExpect(status().isOk());
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","CONFIRMADO")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","CONFIRMADO")))
             .andExpect(status().isCreated());
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/agendamentos/"+id)
+        perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/agendamentos/"+id)
             .contentType("application/json").content(booking("10:00","AGENDADO"))).andExpect(status().isConflict());
     }
 
@@ -263,7 +272,7 @@ class BarbeariaApiTest {
         var start=new java.util.concurrent.CountDownLatch(1);
         java.util.concurrent.Callable<Integer> request=() -> {
             ready.countDown();start.await();
-            return mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("11:00","AGENDADO")))
+            return perform(post("/api/agendamentos").contentType("application/json").content(booking("11:00","AGENDADO")))
                 .andReturn().getResponse().getStatus();
         };
         try {
@@ -278,31 +287,31 @@ class BarbeariaApiTest {
     @Test
     void rejectsCrossShopResourcesAndUnlinkedOrInactiveClients() throws Exception {
         fixture();
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO").replace("\"barbeiroId\":1","\"barbeiroId\":2")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO").replace("\"barbeiroId\":1","\"barbeiroId\":2")))
             .andExpect(status().isConflict());
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO").replace("\"servicoId\":1","\"servicoId\":2")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO").replace("\"servicoId\":1","\"servicoId\":2")))
             .andExpect(status().isConflict());
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO").replace("\"clienteId\":1","\"clienteId\":2")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO").replace("\"clienteId\":1","\"clienteId\":2")))
             .andExpect(status().isConflict());
         jdbc.update("update cliente_barbearia set status='INATIVO' where barbearia_id=1");
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
             .andExpect(status().isConflict());
     }
 
     @Test
     void validatesCatalogAndPreservesBookedDurationOnStatusChange() throws Exception {
         fixture();
-        mvc.perform(post("/api/servicos").contentType("application/json")
+        perform(post("/api/servicos").contentType("application/json")
             .content("{\"barbeariaId\":1,\"nome\":\"Corte\",\"preco\":-1,\"duracaoMin\":0,\"status\":\"ATIVO\"}"))
             .andExpect(status().isBadRequest());
-        var body=mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
+        var body=perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","AGENDADO")))
             .andReturn().getResponse().getContentAsString();
         long id=mapper.readTree(body).get("id").asLong();
         jdbc.update("update servico set duracao_min=60,status='INATIVO' where id=1");
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/agendamentos/"+id)
+        perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/agendamentos/"+id)
             .contentType("application/json").content(booking("10:00","CONCLUIDO")))
             .andExpect(status().isOk()).andExpect(jsonPath("fim").value("2027-01-10T10:30:00"));
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/barbeiros/1")
+        perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/barbeiros/1")
             .contentType("application/json").content("{\"barbeariaId\":2,\"nome\":\"Movido\",\"status\":\"ATIVO\"}"))
             .andExpect(status().isConflict());
     }
@@ -311,37 +320,37 @@ class BarbeariaApiTest {
     void validatesSubscriptionsAndExcludesExpiredFromCurrentTotals() throws Exception {
         fixture();
         String valid="{\"clienteId\":1,\"planoId\":1,\"dataInicio\":\"2000-01-01\",\"dataFim\":\"2001-01-01\",\"status\":\"ATIVA\"}";
-        mvc.perform(post("/api/assinaturas").contentType("application/json").content(valid))
+        perform(post("/api/assinaturas").contentType("application/json").content(valid))
             .andExpect(status().isCreated());
-        mvc.perform(post("/api/assinaturas").contentType("application/json").content(valid.replace("2001-01-01","1999-01-01")))
+        perform(post("/api/assinaturas").contentType("application/json").content(valid.replace("2001-01-01","1999-01-01")))
             .andExpect(status().isConflict());
-        mvc.perform(post("/api/assinaturas").contentType("application/json").content(valid.replace("\"clienteId\":1","\"clienteId\":2")))
+        perform(post("/api/assinaturas").contentType("application/json").content(valid.replace("\"clienteId\":1","\"clienteId\":2")))
             .andExpect(status().isConflict());
-        mvc.perform(get("/api/relatorios").param("barbeariaId","1"))
+        perform(get("/api/relatorios").param("barbeariaId","1"))
             .andExpect(status().isOk()).andExpect(jsonPath("resumo.assinaturasVigentes").value(0));
-        mvc.perform(get("/api/assinaturas").param("barbeariaId","2"))
+        perform(get("/api/assinaturas").param("barbeariaId","2"))
             .andExpect(status().isOk()).andExpect(content().json("[]"));
     }
 
     @Test
     void reportsJoinsAggregationsFiltersAndAvailability() throws Exception {
         fixture();
-        mvc.perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","CONCLUIDO")))
+        perform(post("/api/agendamentos").contentType("application/json").content(booking("10:00","CONCLUIDO")))
             .andExpect(status().isCreated());
-        mvc.perform(get("/api/relatorios").param("barbeariaId","1").param("de","2027-01-10").param("ate","2027-01-10"))
+        perform(get("/api/relatorios").param("barbeariaId","1").param("de",java.time.LocalDate.now().toString()).param("ate",java.time.LocalDate.now().toString()))
             .andExpect(status().isOk()).andExpect(jsonPath("resumo.concluidos").value(1))
             .andExpect(jsonPath("resumo.valorServicosConcluidos").value(40))
             .andExpect(jsonPath("barbeiros[0].nome").value("João"));
-        mvc.perform(get("/api/relatorios").param("barbeariaId","2"))
+        perform(get("/api/relatorios").param("barbeariaId","2"))
             .andExpect(jsonPath("resumo.agendamentos").value(0));
-        mvc.perform(get("/api/relatorios").param("barbeariaId","1").param("de","2027-02-01").param("ate","2027-01-01"))
+        perform(get("/api/relatorios").param("barbeariaId","1").param("de","2027-02-01").param("ate","2027-01-01"))
             .andExpect(status().isConflict());
-        mvc.perform(get("/api/disponibilidade").param("barbeariaId","1").param("barbeiroId","1").param("servicoId","1").param("inicio","2027-01-10T10:00:00"))
+        perform(get("/api/disponibilidade").param("barbeariaId","1").param("barbeiroId","1").param("servicoId","1").param("inicio","2027-01-10T10:00:00"))
             .andExpect(status().isOk()).andExpect(jsonPath("disponivel").value(false));
-        mvc.perform(get("/api/agendamentos").param("barbeariaId","1").param("de","2027-02-01"))
+        perform(get("/api/agendamentos").param("barbeariaId","1").param("de","2027-02-01"))
             .andExpect(content().json("[]"));
-        mvc.perform(get("/api/servicos").param("barbeariaId","9999"))
-            .andExpect(status().isNotFound());
+        perform(get("/api/servicos").param("barbeariaId","9999"))
+            .andExpect(status().isForbidden());
     }
 
 

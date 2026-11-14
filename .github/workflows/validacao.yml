@@ -36,10 +36,10 @@ jobs:
           (cd backend && bash mvnw -B spring-boot:test-run -Dspring-boot.run.main-class=br.com.barberflow.LocalDemoApplication > ../backend.log 2>&1) &
           (cd frontend && npm run dev > ../frontend.log 2>&1) &
           for i in {1..60}; do
-            if curl -fs http://127.0.0.1:5173/api/barbearias > /dev/null; then break; fi
+            if curl -fs http://127.0.0.1:5173/api/auth/csrf > /dev/null; then break; fi
             sleep 2
           done
-          curl -fs http://127.0.0.1:5173/api/barbearias > /dev/null
+          curl -fs http://127.0.0.1:5173/api/auth/csrf > /dev/null
       - name: Testar interface real
         working-directory: frontend
         run: npm run test:e2e
