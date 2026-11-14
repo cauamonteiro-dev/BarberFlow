@@ -155,3 +155,73 @@ test("barbeiro vê a própria agenda e o administrador gerencia horários", asyn
     fullPage: true,
   });
 });
+
+test("troca de unidade ignora a resposta atrasada da unidade anterior", async ({
+  page,
+  context,
+}) => {
+  await loginRequest(context.request, "cliente@barberflow.local");
+  let release, requested, finished;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise((resolve) => {
+    requested = resolve;
+  });
+  const completed = new Promise((resolve) => {
+    finished = resolve;
+  });
+  await page.route("**/api/portal/barbearias", (route) =>
+    route.fulfill({
+      json: [
+        { id: 1, nome: "Primeira", ativa: true },
+        { id: 2, nome: "Segunda", ativa: true },
+      ],
+    }),
+  );
+  await page.route("**/api/portal/painel**", async (route) => {
+    const old =
+      new URL(route.request().url()).searchParams.get("barbeariaId") === "1";
+    if (old) {
+      requested();
+      await gate;
+    }
+    await route.fulfill({
+      json: {
+        agendamentos: [],
+        clientes: [],
+        assinaturas: [],
+        barbeiros: [
+          {
+            id: old ? 101 : 102,
+            nome: old ? "Profissional anterior" : "Profissional correto",
+            status: "ATIVO",
+          },
+        ],
+        servicos: [],
+      },
+    });
+    if (old) finished();
+  });
+  await page.goto("/");
+  await started;
+  await expect(
+    page.getByRole("button", { name: "Novo agendamento", exact: true }),
+  ).toBeDisabled();
+  await page.getByLabel("Selecionar barbearia").selectOption("2");
+  await expect(
+    page.getByRole("button", { name: "Novo agendamento", exact: true }),
+  ).toBeEnabled();
+  release();
+  await completed;
+  await page
+    .getByRole("button", { name: "Novo agendamento", exact: true })
+    .click();
+  const select = page.getByRole("combobox", { name: "Barbeiro", exact: true });
+  await expect(
+    select.getByRole("option", { name: "Profissional correto", exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    select.getByRole("option", { name: "Profissional anterior", exact: true }),
+  ).toHaveCount(0);
+});

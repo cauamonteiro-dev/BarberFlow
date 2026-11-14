@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { api, errorMessage } from "./api";
 import { BrandRail } from "./AuthShell";
 import { useTheme } from "./useTheme";
@@ -25,6 +25,8 @@ export default function Portal({ role }) {
     [hours, setHours] = useState(null);
   const { theme, toggleTheme } = useTheme();
   const client = role === "CLIENTE";
+  const requestId = useRef(0);
+  const ready = data?.barbeariaId === shop;
   useEffect(() => {
     let active = true;
     api
@@ -41,23 +43,26 @@ export default function Portal({ role }) {
     };
   }, []);
   const load = useCallback(async () => {
+    const generation = ++requestId.current;
     if (!shop) return;
     setError("");
     try {
-      const r = await api.get("/portal/painel", {
+      const response = await api.get("/portal/painel", {
         params: { barbeariaId: shop, perfil: role },
       });
-      setData(r.data);
-      if (!client && r.data.barbeiros[0])
-        setHours(
-          (
-            await api.get(
-              `/administracao/barbeiros/${r.data.barbeiros[0].id}/horarios`,
-            )
-          ).data,
-        );
+      if (generation !== requestId.current) return;
+      let calendar = null;
+      if (!client && response.data.barbeiros[0])
+        calendar = (
+          await api.get(
+            `/administracao/barbeiros/${response.data.barbeiros[0].id}/horarios`,
+          )
+        ).data;
+      if (generation !== requestId.current) return;
+      setData({ ...response.data, barbeariaId: shop });
+      setHours(calendar);
     } catch (e) {
-      setError(errorMessage(e));
+      if (generation === requestId.current) setError(errorMessage(e));
     }
   }, [shop, role, client]);
   useEffect(() => {
@@ -65,6 +70,9 @@ export default function Portal({ role }) {
     setHours(null);
     setForm(null);
     load();
+    return () => {
+      ++requestId.current;
+    };
   }, [load]);
   useEffect(() => {
     let active = true;
@@ -113,6 +121,7 @@ export default function Portal({ role }) {
       setNotice("Alterações salvas.");
       await load();
     } catch (e) {
+      if (e.response?.data?.detail?.includes("preço")) await load();
       setError(errorMessage(e));
     } finally {
       setBusy(false);
@@ -131,6 +140,7 @@ export default function Portal({ role }) {
           <div className="shop-select">
             <select
               aria-label="Selecionar barbearia"
+              disabled={busy}
               value={shop}
               onChange={(e) => setShop(e.target.value)}
             >
@@ -159,6 +169,7 @@ export default function Portal({ role }) {
             {client && shop && (
               <button
                 className="primary"
+                disabled={!ready || busy}
                 onClick={() => {
                   setForm({
                     barbeiroId: "",
@@ -302,7 +313,7 @@ export default function Portal({ role }) {
               </form>
             </section>
           )}
-          {data && (
+          {ready && (
             <>
               <section className="panel">
                 <div className="panel-heading">

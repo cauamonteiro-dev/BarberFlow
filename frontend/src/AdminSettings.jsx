@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { api, errorMessage } from "./api";
 import { BrandRail } from "./AuthShell";
 export default function AdminSettings() {
@@ -21,6 +21,9 @@ export default function AdminSettings() {
       clienteId: "",
     }),
     [block, setBlock] = useState({ inicio: "", fim: "", motivo: "" });
+  const unitsRequest = useRef(0),
+    hoursRequest = useRef(0);
+  const [loadedShop, setLoadedShop] = useState("");
   useEffect(() => {
     api
       .get("/barbearias")
@@ -31,12 +34,15 @@ export default function AdminSettings() {
       .catch((e) => setError(errorMessage(e)));
   }, []);
   const load = useCallback(async () => {
+    const generation = ++unitsRequest.current;
     if (!shop) return;
     const [b, c, a] = await Promise.all([
       api.get("/barbeiros", { params: { barbeariaId: shop } }),
       api.get("/clientes", { params: { barbeariaId: shop } }),
       api.get(`/administracao/${shop}/acessos`),
     ]);
+    if (generation !== unitsRequest.current) return;
+    setLoadedShop(shop);
     setBarbers(b.data);
     setClients(c.data);
     setAccounts(a.data);
@@ -45,15 +51,25 @@ export default function AdminSettings() {
     setBarber("");
     setHours({ expediente: [], bloqueios: [] });
     load().catch((e) => setError(errorMessage(e)));
+    return () => {
+      ++unitsRequest.current;
+    };
   }, [load]);
   const loadHours = useCallback(async () => {
-    if (barber)
-      setHours(
-        (await api.get(`/administracao/barbeiros/${barber}/horarios`)).data,
-      );
+    const generation = ++hoursRequest.current;
+    if (!barber) return;
+    const response = await api.get(
+      `/administracao/barbeiros/${barber}/horarios`,
+    );
+    if (generation === hoursRequest.current)
+      setHours({ ...response.data, barbeiroId: barber });
   }, [barber]);
   useEffect(() => {
+    setHours({ expediente: [], bloqueios: [] });
     loadHours().catch((e) => setError(errorMessage(e)));
+    return () => {
+      ++hoursRequest.current;
+    };
   }, [loadHours]);
   async function mutate(fn) {
     setError("");
@@ -95,6 +111,7 @@ export default function AdminSettings() {
             </div>
             <select
               aria-label="Barbearia de administração"
+              disabled={busy}
               value={shop}
               onChange={(e) => setShop(e.target.value)}
             >
@@ -205,7 +222,10 @@ export default function AdminSettings() {
                 </p>
               </div>
               <div className="modal-footer">
-                <button className="primary" disabled={busy || !shop}>
+                <button
+                  className="primary"
+                  disabled={busy || loadedShop !== shop}
+                >
                   Salvar acesso
                 </button>
               </div>
@@ -257,6 +277,7 @@ export default function AdminSettings() {
               <h2>Expediente do profissional</h2>
               <select
                 aria-label="Profissional dos horários"
+                disabled={busy || loadedShop !== shop}
                 value={barber}
                 onChange={(e) => setBarber(e.target.value)}
               >
@@ -268,7 +289,7 @@ export default function AdminSettings() {
                 ))}
               </select>
             </div>
-            {barber && (
+            {barber && hours.barbeiroId === barber && (
               <>
                 <div className="schedule-editor">
                   {hours.expediente.map((h, i) => (
