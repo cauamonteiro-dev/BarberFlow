@@ -1,0 +1,14 @@
+.git
+.idea
+.local
+**/node_modules
+**/dist
+**/target
+**/test-results
+**/playwright-report
+**/.env
+**/.env.*
+**/application-local.*
+**/*.log
+docs
+database

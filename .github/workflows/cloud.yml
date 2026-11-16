@@ -1,0 +1,49 @@
+name: Validar imagem de nuvem
+on:
+  push:
+    branches: ['feat/publicacao-nuvem']
+  pull_request:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - render.yaml
+      - backend/**
+      - frontend/**
+      - scripts/smoke-cloud.py
+      - .github/workflows/cloud.yml
+permissions:
+  contents: read
+jobs:
+  imagem:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: barberflow_cloud
+          POSTGRES_USER: barberflow
+          POSTGRES_PASSWORD: ci-database-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U barberflow -d barberflow_cloud"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ADMIN_EMAIL: admin-cloud@example.com
+      ADMIN_PASSWORD: CloudImageTest!2026
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir imagem completa
+        run: docker build -t barberflow:cloud .
+      - name: Iniciar imagem com banco isolado
+        run: |
+          docker run -d --name barberflow-cloud --network host --memory 512m \
+            -e DB_HOST=127.0.0.1 -e DB_NAME=barberflow_cloud \
+            -e DB_USERNAME=barberflow -e DB_PASSWORD=ci-database-only \
+            -e ADMIN_EMAIL -e ADMIN_PASSWORD barberflow:cloud
+      - name: Conferir interface, login e permissões na imagem
+        run: python3 scripts/smoke-cloud.py
+      - name: Exibir diagnóstico da aplicação
+        if: always()
+        run: docker logs barberflow-cloud || true
