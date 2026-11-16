@@ -1,0 +1,232 @@
+.shop-search-top {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.shop-search-top > span {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+}
+.shop-discovery {
+  padding-bottom: 40px;
+}
+.discovery-intro {
+  padding: 24px 0 32px;
+  max-width: 730px;
+}
+.discovery-intro h1 {
+  font:
+    750 clamp(28px, 3vw, 40px)/1.2 "Manrope Variable",
+    sans-serif;
+  letter-spacing: -1.3px;
+  margin: 0 0 16px;
+  color: var(--text);
+}
+.discovery-intro > p:not(.eyebrow) {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin-bottom: 26px;
+}
+.shop-search-field {
+  display: grid;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.shop-search-field > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 18px;
+  color: var(--accent-text);
+}
+.shop-search-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 17px 0;
+  font:
+    400 16px "DM Sans Variable",
+    sans-serif;
+  min-height: 56px;
+}
+.shop-search-field > div:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.shop-search-field input:focus-visible {
+  outline: none;
+}
+.discovery-results {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 0 0 20px;
+}
+.discovery-results h2 {
+  font:
+    700 18px "Manrope Variable",
+    sans-serif;
+  margin: 0;
+}
+.discovery-results p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+.shop-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.shop-card-cover {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px;
+  background: linear-gradient(120deg, #101e2a, #2d4253);
+  color: #d4b480;
+}
+.shop-card-cover > span {
+  font-size: 52px;
+  line-height: 1;
+}
+.shop-card-cover small {
+  font:
+    600 10px "Manrope Variable",
+    sans-serif;
+  letter-spacing: 2px;
+  border-top: 1px solid #d4b48066;
+  border-bottom: 1px solid #d4b48066;
+  padding: 10px 0;
+}
+.shop-card-body {
+  padding: 24px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.shop-availability {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.shop-availability i {
+  width: 6px;
+  height: 6px;
+  background: var(--success-text);
+  border-radius: 50%;
+}
+.shop-card h3 {
+  font:
+    750 20px/1.35 "Manrope Variable",
+    sans-serif;
+  margin: 13px 0 12px;
+  overflow-wrap: anywhere;
+  letter-spacing: -0.5px;
+}
+.shop-card-body > p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin: 0 0 24px;
+}
+.shop-card button {
+  width: 100%;
+  margin-top: auto;
+  min-height: 44px;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.selected-shop-name {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.shop-select .change-shop {
+  flex-shrink: 0;
+}
+.shop-select .selected-shop-name {
+  flex: 1;
+}
+.shop-discovery .empty h3 {
+  font-size: 18px;
+}
+.shop-discovery .empty p {
+  font-size: 13px;
+}
+@media (max-width: 1200px) {
+  .shop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .discovery-intro {
+    padding-top: 6px;
+  }
+  .discovery-intro h1 {
+    letter-spacing: -0.8px;
+  }
+  .discovery-results {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .shop-card-body {
+    padding: 22px;
+  }
+  .shop-card-cover {
+    height: 100px;
+  }
+  .shop-card button {
+    font-size: 13px;
+  }
+  .shop-search-top {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .shop-search-top .theme-toggle {
+    width: 44px;
+  }
+  .shop-availability {
+    font-size: 12px;
+  }
+  .shop-select:has(.selected-shop-name) {
+    flex-wrap: wrap;
+  }
+  .shop-select .selected-shop-name {
+    flex-basis: calc(100% - 60px);
+    font-size: 16px;
+  }
+  .shop-select .change-shop {
+    flex: 1;
+    order: 3;
+    min-height: 44px;
+  }
+}
+@media (max-width: 540px) {
+  .shop-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

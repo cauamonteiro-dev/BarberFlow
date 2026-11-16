@@ -13,7 +13,7 @@ const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
-export default function Portal({ role }) {
+export default function Portal({ role, selectedShop, onChooseShop }) {
   const [shops, setShops] = useState([]),
     [shop, setShop] = useState(""),
     [data, setData] = useState(null),
@@ -35,7 +35,7 @@ export default function Portal({ role }) {
       .then((r) => {
         if (active) {
           setShops(r.data);
-          setShop(String(r.data[0]?.id || ""));
+          setShop(String(selectedShop?.id || r.data[0]?.id || ""));
         }
       })
       .catch((e) => setError(errorMessage(e)));
@@ -99,6 +99,17 @@ export default function Portal({ role }) {
       active = false;
     };
   }, [form?.barbeiroId, form?.servicoId, form?.id, day, shop]);
+  useEffect(() => {
+    if (client && selectedShop && ready) {
+      setForm({
+        barbeiroId: "",
+        servicoId: "",
+        inicio: "",
+        status: "AGENDADO",
+      });
+      setDay(today());
+    }
+  }, [client, selectedShop, ready]);
   const name = (kind, id) =>
     data?.[kind]?.find((x) => x.id === id)?.nome || `#${id}`;
   const payload = (a) => ({
@@ -139,18 +150,31 @@ export default function Portal({ role }) {
               : "Sua agenda, bem organizada."}
           </span>
           <div className="shop-select">
-            <select
-              aria-label="Selecionar barbearia"
-              disabled={busy}
-              value={shop}
-              onChange={(e) => setShop(e.target.value)}
-            >
-              {shops.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nome}
-                </option>
-              ))}
-            </select>
+            {client && selectedShop ? (
+              <>
+                <span className="selected-shop-name">{selectedShop.nome}</span>
+                <button
+                  className="secondary change-shop"
+                  disabled={busy}
+                  onClick={onChooseShop}
+                >
+                  Pesquisar outra barbearia
+                </button>
+              </>
+            ) : (
+              <select
+                aria-label="Selecionar barbearia"
+                disabled={busy}
+                value={shop}
+                onChange={(e) => setShop(e.target.value)}
+              >
+                {shops.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nome}
+                  </option>
+                ))}
+              </select>
+            )}
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
         </header>

@@ -51,12 +51,20 @@ test("cliente cadastra acesso, reserva, remarca e cancela no próprio portal", a
     await page.getByLabel("Senha", { exact: true }).fill("Portal!2026teste");
     await page.getByRole("button", { name: "Criar conta e entrar" }).click();
     await expect(
-      page.getByRole("heading", { name: "Meus agendamentos" }),
+      page.getByRole("heading", { name: "Encontre sua barbearia" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Acessos e horários" }),
     ).toHaveCount(0);
-    await page.getByLabel("Selecionar barbearia").selectOption(String(shop.id));
+    await page
+      .getByRole("searchbox", { name: "Pesquisar barbearias" })
+      .fill(shop.nome);
+    await page
+      .getByRole("button", {
+        name: `Ver serviços e horários de ${shop.nome}`,
+        exact: true,
+      })
+      .click();
     await page
       .getByRole("button", { name: "Novo agendamento", exact: true })
       .click();
@@ -204,11 +212,25 @@ test("troca de unidade ignora a resposta atrasada da unidade anterior", async ({
     if (old) finished();
   });
   await page.goto("/");
+  await page
+    .getByRole("button", {
+      name: "Ver serviços e horários de Primeira",
+      exact: true,
+    })
+    .click();
   await started;
   await expect(
     page.getByRole("button", { name: "Novo agendamento", exact: true }),
   ).toBeDisabled();
-  await page.getByLabel("Selecionar barbearia").selectOption("2");
+  await page
+    .getByRole("button", { name: "Pesquisar outra barbearia", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Ver serviços e horários de Segunda",
+      exact: true,
+    })
+    .click();
   await expect(
     page.getByRole("button", { name: "Novo agendamento", exact: true }),
   ).toBeEnabled();

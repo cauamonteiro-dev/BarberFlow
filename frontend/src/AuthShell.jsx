@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import App from "./App";
 import Portal from "./Portal";
+import CustomerPortal from "./CustomerPortal";
 import AdminSettings from "./AdminSettings";
 import { api, errorMessage } from "./api";
 import { useTheme } from "./useTheme";
@@ -248,6 +249,8 @@ export default function AuthShell() {
         ) : (
           <App />
         )
+      ) : role === "CLIENTE" ? (
+        <CustomerPortal />
       ) : (
         <Portal key={role} role={role} />
       )}

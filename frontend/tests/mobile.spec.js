@@ -139,6 +139,13 @@ for (const [role, email] of [
     await loginRequest(context.request, email);
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
+    if (role === "cliente")
+      await page
+        .getByRole("button", {
+          name: "Ver serviços e horários de Barbearia Central",
+          exact: true,
+        })
+        .click();
     await expect(
       page.getByRole("heading", {
         name: role === "cliente" ? "Meus agendamentos" : "Minha agenda",
