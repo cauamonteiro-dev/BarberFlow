@@ -1,3 +1,4 @@
+import ResponsiveTable from "./ResponsiveTable";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "./api";
 import { useTheme } from "./useTheme";
@@ -805,7 +806,7 @@ export default function App() {
                         </div>
                       </div>
                       <div className="table-wrap">
-                        <table>
+                        <ResponsiveTable>
                           <thead>
                             <tr>
                               <th>Profissional</th>
@@ -826,7 +827,7 @@ export default function App() {
                               </tr>
                             ))}
                           </tbody>
-                        </table>
+                        </ResponsiveTable>
                       </div>
                       <p className="report-note">
                         {report?.resumo.atendimentosEstimados || 0}{" "}
@@ -946,7 +947,7 @@ export default function App() {
                   )}
                   {filtered.length ? (
                     <div className="table-wrap">
-                      <table>
+                      <ResponsiveTable>
                         <thead>
                           <tr>
                             {(page === "clientes"
@@ -1075,7 +1076,7 @@ export default function App() {
                             </tr>
                           ))}
                         </tbody>
-                      </table>
+                      </ResponsiveTable>
                     </div>
                   ) : (
                     <div className="empty compact">

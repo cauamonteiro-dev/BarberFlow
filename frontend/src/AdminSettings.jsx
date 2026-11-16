@@ -1,3 +1,4 @@
+import ResponsiveTable from "./ResponsiveTable";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api, errorMessage } from "./api";
 import { BrandRail } from "./AuthShell";
@@ -231,7 +232,7 @@ export default function AdminSettings() {
               </div>
             </form>
             <div className="table-wrap">
-              <table>
+              <ResponsiveTable>
                 <thead>
                   <tr>
                     <th>Nome</th>
@@ -269,7 +270,7 @@ export default function AdminSettings() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </section>
           <section className="panel portal-section">
