@@ -23,6 +23,9 @@ def request(method, path, data=None, headers=None):
         if key.lower() == "set-cookie":
             parsed = SimpleCookie(value)
             for name, cookie in parsed.items():
+                if cookie["max-age"] == "0" or not cookie.value:
+                    cookies.pop(name, None)
+                    continue
                 if name == "JSESSIONID":
                     assert cookie["secure"] and cookie["httponly"], "Session cookie must be secure and HttpOnly"
                 cookies[name] = cookie.value
@@ -63,6 +66,7 @@ assert any(role["perfil"] == "ADMIN" for role in json.loads(body)["papeis"])
 status, body = request("GET", "/api/barbearias")
 assert status == 200 and len(json.loads(body)) == 1, "Initial shop missing"
 assert post("/api/auth/logout", {})[0] == 204
+assert request("GET", "/api/auth/me")[0] == 401, "Logout must end the session"
 cookies.clear()
 customer = {"nome": "Colega de teste", "email": "colega@example.com", "senha": "CloudClientTest!2026"}
 assert post("/api/auth/cadastro", customer)[0] == 201
