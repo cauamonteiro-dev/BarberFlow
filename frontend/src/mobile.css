@@ -1,0 +1,594 @@
+/* Phone layouts apply after the shared desktop and portal styles. */
+@media (max-width: 760px) {
+  html {
+    scroll-padding-top: 110px;
+  }
+  body {
+    min-width: 0;
+  }
+  .app {
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+  .app > main {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+  .account-bar {
+    margin-left: 0;
+    padding: 12px max(16px, env(safe-area-inset-right)) 12px
+      max(16px, env(safe-area-inset-left));
+    gap: 10px;
+  }
+  .account-bar > span {
+    min-width: 0;
+    width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .account-bar strong {
+    font-size: 14px;
+  }
+  .account-bar small {
+    font-size: 12px;
+  }
+  .account-role {
+    flex: 1 1 100%;
+    font-size: 12px;
+    min-width: 0;
+  }
+  .account-role select {
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  .account-bar .secondary {
+    flex: 1 1 110px;
+    font-size: 12px;
+  }
+  .session-error {
+    margin: 12px 16px;
+  }
+  .sidebar {
+    position: sticky;
+    inset: auto;
+    top: 0;
+    width: 100%;
+    height: auto;
+    padding: 10px 16px 0;
+    z-index: 10;
+    box-shadow: 0 3px 12px #07111d20;
+  }
+  .sidebar .brand {
+    min-height: 44px;
+    justify-content: flex-start;
+    margin: 0 0 10px;
+    gap: 10px;
+    font-size: 25px;
+  }
+  .sidebar .brand > span:not(.brand-mark) {
+    display: block;
+  }
+  .sidebar .brand small {
+    display: block;
+    font-size: 8px;
+  }
+  .brand-mark {
+    width: 30px;
+    height: 38px;
+  }
+  .brand-mark img {
+    width: 106px;
+    height: 106px;
+    left: -39px;
+    top: -23px;
+  }
+  .sidebar .workspace-label,
+  .sidebar-foot,
+  .portal-rail > p {
+    display: none;
+  }
+  .sidebar nav {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 0 0 10px;
+    scrollbar-width: thin;
+    scrollbar-color: #d4b480 #101e2a;
+    overscroll-behavior-x: contain;
+  }
+  .sidebar .nav {
+    flex: 0 0 auto;
+    display: inline-flex;
+    font-size: 13px;
+    min-height: 44px;
+    padding: 10px 13px;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .sidebar .nav > span {
+    font-size: 19px;
+    width: 20px;
+  }
+  .sidebar .nav small {
+    display: inline;
+  }
+  .portal-rail {
+    padding-bottom: 1px;
+  }
+  .topbar {
+    height: auto;
+    min-height: 66px;
+    padding: 12px 16px;
+  }
+  .shop-select {
+    width: 100%;
+    min-width: 0;
+    gap: 10px;
+  }
+  .shop-select select {
+    flex: 1;
+    width: 0;
+    min-width: 0;
+    max-width: none;
+  }
+  .shop-select label,
+  .shop-select .avatar {
+    display: none;
+  }
+  .theme-toggle {
+    width: 44px;
+    padding: 10px;
+  }
+  .theme-toggle span {
+    display: none;
+  }
+  .content {
+    padding: 22px max(16px, env(safe-area-inset-right)) 0
+      max(16px, env(safe-area-inset-left));
+    width: 100%;
+    min-width: 0;
+  }
+  .page-heading {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .page-heading h1 {
+    font-size: 26px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  .page-heading p:not(.eyebrow) {
+    font-size: 13px;
+  }
+  .page-heading > select {
+    width: 100%;
+    max-width: none;
+  }
+  .heading-actions {
+    flex-direction: row;
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    gap: 10px;
+  }
+  .heading-actions > button {
+    flex: 1 1 130px;
+  }
+  button,
+  .primary,
+  .secondary,
+  .edit,
+  .text-button,
+  .close {
+    min-height: 44px;
+  }
+  .primary,
+  .secondary,
+  .edit,
+  .text-button {
+    font-size: 13px;
+  }
+  .account-bar select,
+  .page-heading > select,
+  .panel-heading select,
+  input,
+  select,
+  textarea,
+  .shop-select select,
+  .form-fields input,
+  .form-fields select,
+  .filters input,
+  .filters select,
+  .search input,
+  .schedule-row input,
+  .schedule-row select,
+  .auth-form input {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  .close {
+    min-width: 44px;
+  }
+  .welcome {
+    padding: 24px;
+    gap: 20px;
+  }
+  .welcome h2 {
+    font-size: 26px;
+  }
+  .welcome p {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .welcome-art {
+    width: 140px;
+    height: 140px;
+    flex-basis: auto;
+  }
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .stat {
+    min-width: 0;
+    padding: 17px;
+  }
+  .stat > div {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .stat > strong {
+    font-size: 25px;
+    overflow-wrap: anywhere;
+  }
+  .stat small {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .stat i {
+    display: none;
+  }
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .panel {
+    min-width: 0;
+  }
+  .panel h2 {
+    font-size: 16px;
+  }
+  .panel p {
+    font-size: 12px;
+  }
+  .panel-heading,
+  .list-toolbar {
+    padding: 18px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .panel-heading > div {
+    min-width: 0;
+  }
+  .panel-heading > select {
+    width: 100%;
+    max-width: none;
+  }
+  .list-toolbar {
+    align-items: stretch;
+  }
+  .list-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .search {
+    width: 100%;
+  }
+  .search input {
+    width: 100%;
+  }
+  .table-wrap {
+    overflow: visible;
+  }
+  table {
+    display: block;
+    width: 100%;
+    white-space: normal;
+    font-size: 14px;
+  }
+  table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  table tbody {
+    display: grid;
+    padding: 0 14px 14px;
+    gap: 14px;
+  }
+  table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 16px;
+  }
+  table tbody td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    line-height: 1.55;
+  }
+  table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 5px;
+  }
+  table tbody td:first-child {
+    grid-column: 1 / -1;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  table tbody td:is([data-label="Ações"], [data-label="Ação"]) {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 6px;
+    align-items: center;
+  }
+  table tbody td:is([data-label="Ações"], [data-label="Ação"])::before {
+    flex-basis: 100%;
+    margin: 0;
+  }
+  table td small {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+  }
+  table td strong {
+    font-weight: 650;
+  }
+  .row-actions {
+    width: 100%;
+    gap: 10px;
+  }
+  .row-actions button {
+    flex: 1 1 105px;
+  }
+  .badge {
+    font-size: 12px;
+    white-space: normal;
+  }
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0 18px 18px;
+    gap: 12px;
+  }
+  .filters label {
+    font-size: 12px;
+    min-width: 0;
+  }
+  .filters input,
+  .filters select {
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
+  }
+  .filters > button {
+    align-self: end;
+  }
+  .panel .form-fields {
+    max-height: none;
+  }
+  .form-fields {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 20px;
+    gap: 18px;
+  }
+  .form-fields label {
+    font-size: 13px;
+    min-width: 0;
+  }
+  .form-note {
+    font-size: 12px;
+  }
+  .modal-footer {
+    gap: 10px;
+    padding: 16px 20px max(16px, env(safe-area-inset-bottom));
+    flex-wrap: wrap;
+  }
+  .modal-footer button {
+    flex: 1 1 110px;
+  }
+  dialog {
+    width: calc(100% - 20px);
+    max-width: 580px;
+    max-height: calc(100dvh - 24px);
+    padding: 0;
+    margin: auto;
+  }
+  dialog > form {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 26px);
+  }
+  dialog .modal-heading,
+  dialog .modal-footer {
+    flex: 0 0 auto;
+  }
+  dialog .form-fields {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+  .modal-heading {
+    padding: 18px 20px;
+    gap: 10px;
+  }
+  .modal-heading h2 {
+    font-size: 20px;
+  }
+  .alert {
+    font-size: 13px;
+    align-items: flex-start;
+    overflow-wrap: anywhere;
+  }
+  .appointment {
+    padding: 16px 18px;
+  }
+  .appointment-name {
+    font-size: 14px;
+  }
+  .appointment small,
+  .appointment time {
+    font-size: 12px;
+  }
+  .quick-number {
+    font-size: 13px;
+  }
+  .quick-actions button {
+    font-size: 13px;
+    padding: 12px;
+  }
+  .empty p,
+  .empty.compact p,
+  .empty.compact h3 {
+    font-size: 13px;
+  }
+  .empty {
+    padding: 35px 18px;
+  }
+  .schedule-editor,
+  .schedule-summary {
+    padding: 18px;
+  }
+  .schedule-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    border: 1px solid var(--line);
+    padding: 14px;
+    border-radius: 8px;
+  }
+  .schedule-row label {
+    min-width: 0;
+    font-size: 12px;
+  }
+  .schedule-row label:first-child {
+    grid-column: 1 / -1;
+  }
+  .schedule-row input,
+  .schedule-row select {
+    width: 100%;
+    min-width: 0;
+  }
+  .schedule-row button {
+    grid-column: 1 / -1;
+  }
+  .schedule-summary span {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  .auth-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+  .auth-brand {
+    padding: 22px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+  }
+  .auth-brand > img {
+    width: 76px;
+    height: 76px;
+  }
+  .auth-brand h1 {
+    font-size: 23px;
+    margin: 0;
+    letter-spacing: -0.5px;
+  }
+  .auth-brand p {
+    display: none;
+  }
+  .auth-form {
+    padding: 22px;
+  }
+  .auth-theme {
+    position: static;
+    align-self: flex-end;
+    margin-bottom: 16px;
+  }
+  .auth-form .theme-toggle {
+    width: auto;
+  }
+  .auth-form .theme-toggle span {
+    display: inline;
+  }
+  .auth-form h2 {
+    font-size: 26px;
+  }
+  .auth-form label,
+  .auth-form small {
+    font-size: 13px;
+  }
+  footer {
+    font-size: 10px;
+    line-height: 1.6;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 380px) {
+  .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .account-bar .secondary {
+    flex: 1 1 110px;
+  }
+  .welcome h2 {
+    font-size: 24px;
+  }
+}
+@media (max-height: 500px) and (max-width: 950px) {
+  dialog {
+    max-height: calc(100dvh - 12px);
+  }
+  dialog > form {
+    max-height: calc(100dvh - 14px);
+  }
+  dialog .modal-heading {
+    padding: 10px 18px;
+  }
+  dialog .modal-footer {
+    padding: 10px 18px;
+  }
+}
+
+@media (max-width: 760px) {
+  table tbody td[data-empty="true"] {
+    display: none;
+  }
+}

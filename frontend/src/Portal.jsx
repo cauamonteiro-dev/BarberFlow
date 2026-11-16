@@ -1,3 +1,4 @@
+import ResponsiveTable from "./ResponsiveTable";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api, errorMessage } from "./api";
 import { BrandRail } from "./AuthShell";
@@ -327,7 +328,7 @@ export default function Portal({ role }) {
                   </button>
                 </div>
                 <div className="table-wrap">
-                  <table>
+                  <ResponsiveTable>
                     <thead>
                       <tr>
                         {!client && <th>Cliente / contato</th>}
@@ -466,7 +467,7 @@ export default function Portal({ role }) {
                           </tr>
                         ))}
                     </tbody>
-                  </table>
+                  </ResponsiveTable>
                   {data.agendamentos.length === 0 && (
                     <div className="empty compact">
                       Nenhum agendamento nesta unidade.
@@ -480,7 +481,7 @@ export default function Portal({ role }) {
                     <h2>Minhas assinaturas nesta unidade</h2>
                   </div>
                   <div className="table-wrap">
-                    <table>
+                    <ResponsiveTable>
                       <thead>
                         <tr>
                           <th>Plano</th>
@@ -499,7 +500,7 @@ export default function Portal({ role }) {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </ResponsiveTable>
                   </div>
                 </section>
               )}
