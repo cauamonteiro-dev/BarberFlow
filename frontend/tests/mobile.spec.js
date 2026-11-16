@@ -148,7 +148,7 @@ for (const [role, email] of [
         .click();
     await expect(
       page.getByRole("heading", {
-        name: role === "cliente" ? "Meus agendamentos" : "Minha agenda",
+        name: role === "cliente" ? "Agendar serviço" : "Minha agenda",
         exact: true,
       }),
     ).toBeVisible();

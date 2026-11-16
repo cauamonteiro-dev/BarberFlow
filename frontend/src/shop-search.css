@@ -230,3 +230,19 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.client-view-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.client-view-nav button {
+  min-height: 44px;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .client-view-nav button {
+    flex: 1 1 130px;
+  }
+}

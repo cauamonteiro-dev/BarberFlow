@@ -23,7 +23,8 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
     [form, setForm] = useState(null),
     [slots, setSlots] = useState([]),
     [day, setDay] = useState(today()),
-    [hours, setHours] = useState(null);
+    [hours, setHours] = useState(null),
+    [clientView, setClientView] = useState("booking");
   const { theme, toggleTheme } = useTheme();
   const client = role === "CLIENTE";
   const requestId = useRef(0);
@@ -130,6 +131,7 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
     try {
       await fn();
       setForm(null);
+      if (client) setClientView("appointments");
       setNotice("Alterações salvas.");
       await load();
     } catch (e) {
@@ -184,10 +186,18 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
               <p className="eyebrow">
                 {client ? "ESPAÇO DO CLIENTE" : "ESPAÇO DO BARBEIRO"}
               </p>
-              <h1>{client ? "Meus agendamentos" : "Minha agenda"}</h1>
+              <h1>
+                {client
+                  ? clientView === "booking"
+                    ? "Agendar serviço"
+                    : "Meus agendamentos"
+                  : "Minha agenda"}
+              </h1>
               <p>
                 {client
-                  ? "Escolha um serviço e um horário disponível."
+                  ? clientView === "booking"
+                    ? "Escolha um serviço, um profissional e um horário disponível."
+                    : "Somente suas reservas nesta barbearia. Você pode remarcar ou cancelar atendimentos futuros em aberto."
                   : "Acompanhe seus horários e os clientes de cada atendimento."}
               </p>
             </div>
@@ -196,6 +206,7 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
                 className="primary"
                 disabled={!ready || busy}
                 onClick={() => {
+                  setClientView("booking");
                   setForm({
                     barbeiroId: "",
                     servicoId: "",
@@ -209,6 +220,44 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
               </button>
             )}
           </div>
+          {client && (
+            <nav className="client-view-nav" aria-label="Área do cliente">
+              <button
+                className={clientView === "booking" ? "primary" : "secondary"}
+                aria-current={clientView === "booking" ? "page" : undefined}
+                disabled={!ready || busy}
+                onClick={() => {
+                  setClientView("booking");
+                  setNotice("");
+                  setForm({
+                    barbeiroId: "",
+                    servicoId: "",
+                    inicio: "",
+                    status: "AGENDADO",
+                  });
+                  setDay(today());
+                }}
+              >
+                Agendar serviço
+              </button>
+              <button
+                className={
+                  clientView === "appointments" ? "primary" : "secondary"
+                }
+                aria-current={
+                  clientView === "appointments" ? "page" : undefined
+                }
+                disabled={!ready || busy}
+                onClick={() => {
+                  setClientView("appointments");
+                  setForm(null);
+                  setNotice("");
+                }}
+              >
+                Meus agendamentos
+              </button>
+            </nav>
+          )}
           {error && (
             <div className="alert error" role="alert">
               {error}
@@ -224,7 +273,7 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
               Nenhuma barbearia disponível para este acesso.
             </div>
           )}
-          {form && (
+          {form && (!client || clientView === "booking") && (
             <section className="panel portal-form">
               <h2>{form.id ? "Remarcar atendimento" : "Novo agendamento"}</h2>
               <form
@@ -338,13 +387,13 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
               </form>
             </section>
           )}
-          {ready && (
+          {ready && (!client || clientView === "appointments") && (
             <>
               <section className="panel">
                 <div className="panel-heading">
                   <h2>
                     {client
-                      ? "Reservas e histórico"
+                      ? "Minhas reservas"
                       : "Atendimentos atribuídos a você"}
                   </h2>
                   <button className="secondary" onClick={load}>
@@ -384,8 +433,8 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
                             <td>
                               <strong>{name("servicos", a.servicoId)}</strong>
                               <small>
-                                {name("barbeiros", a.barbeiroId)} •{" "}
-                                {money(a.valorAcordado)}
+                                Profissional: {name("barbeiros", a.barbeiroId)}{" "}
+                                • {money(a.valorAcordado)}
                                 {a.valorEstimado ? " (estimado)" : ""}
                               </small>
                             </td>
@@ -416,6 +465,7 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
                                       <button
                                         className="secondary"
                                         onClick={() => {
+                                          setClientView("booking");
                                           setDay(a.inicio.slice(0, 10));
                                           setForm({ ...a, status: "AGENDADO" });
                                         }}

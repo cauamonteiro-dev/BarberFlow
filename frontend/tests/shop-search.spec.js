@@ -90,8 +90,36 @@ test("selecionar uma barbearia abre os serviços daquela unidade e permite volta
     "Barbearia Central",
   );
   await expect(
-    page.getByRole("heading", { name: "Novo agendamento", exact: true }),
+    page.getByRole("heading", { name: "Agendar serviço", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Minhas reservas", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("table")).toHaveCount(0);
+  const me = await (await page.request.get("/api/auth/me")).json();
+  const panel = await (
+    await page.request.get("/api/portal/painel?barbeariaId=1&perfil=CLIENTE")
+  ).json();
+  expect(panel.agendamentos.every((a) => a.clienteId === me.clienteId)).toBe(
+    true,
+  );
+  expect(panel.clientes.every((c) => c.id === me.clienteId)).toBe(true);
+  expect((await page.request.get("/api/clientes")).status()).toBe(403);
+  await page
+    .getByRole("button", { name: "Meus agendamentos", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Minhas reservas", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("columnheader", { name: "Cliente / contato", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Agendar serviço", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Minhas reservas", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page
       .getByRole("combobox", { name: "Serviço", exact: true })
