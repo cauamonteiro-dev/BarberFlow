@@ -74,3 +74,8 @@ Inicie a API com `LocalDemoApplication` e a interface com Vite. Somente nesse am
 Para demonstrar dados recentes, selecione a unidade 6 e abra Relatórios. Selecione o serviço/profissional, alterne a métrica mensal, abra uma situação e exporte o CSV. Entre como Barbearia 1 para demonstrar a restrição e como administrador geral para mostrar as 15 unidades. As senhas de demonstração não são ativadas no perfil de nuvem.
 
 Antes de qualquer futura publicação no Render, revisar separadamente a migração dos acessos existentes, os dados que devem existir no banco da nuvem e as divergências observadas pelo usuário. O GitHub não substitui essa discussão.
+
+
+## Estado da publicação
+
+A escrita no GitBook foi recusada pela conexão atual com HTTP 403: autenticação de usuário necessária. Nenhuma página publicada foi alterada. O conteúdo aprovado foi aplicado aos arquivos em `docs/` para sincronização/publicação quando o acesso de escrita estiver disponível.
