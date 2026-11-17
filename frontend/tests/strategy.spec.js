@@ -56,8 +56,14 @@ test("dashboard filtra gráficos, detalha situações e exporta o recorte", asyn
   await expect(
     page.getByRole("heading", { name: "Evolução mensal" }),
   ).toBeVisible();
+  const currentYear = new Date().getFullYear();
+  const from = `${currentYear - 1}-01-01`,
+    until = `${currentYear + 1}-12-31`;
+  await page.getByLabel("De", { exact: true }).fill(from);
+  await page.getByLabel("Até", { exact: true }).fill(until);
+  await expect(page.getByRole("status")).toHaveCount(0);
   const response = await page.request.get(
-    "/api/relatorios/dashboard?barbeariaId=6",
+    `/api/relatorios/dashboard?barbeariaId=6&de=${from}&ate=${until}`,
   );
   const data = await response.json();
   expect(data.indicadores.agendamentos).toBe(8);

@@ -9,7 +9,7 @@ INSERT INTO plano(id,barbearia_id,nome,preco,status) SELECT p.id+10*k,p.barbeari
 INSERT INTO agendamento(id,barbearia_id,cliente_id,barbeiro_id,servico_id,inicio,fim,status,valor_acordado,valor_estimado,concluido_em)
 SELECT a.id+40*k,a.barbearia_id+5*k,a.cliente_id+35*k,a.barbeiro_id+15*k,a.servico_id+25*k,t.inicio,t.inicio+(a.fim-a.inicio),a.status,s.preco,false,CASE WHEN a.status='CONCLUIDO' THEN t.inicio+(a.fim-a.inicio) END
 FROM agendamento a CROSS JOIN generate_series(1,2) k JOIN servico s ON s.id=a.servico_id+25*k
-CROSS JOIN LATERAL (SELECT (CASE WHEN a.status IN ('AGENDADO','CONFIRMADO') THEN current_date+(a.id%14+1)::int ELSE current_date-(a.id%60+1)::int END)+a.inicio::time inicio) t WHERE a.id<=40;
+CROSS JOIN LATERAL (SELECT (CASE WHEN a.status IN ('AGENDADO','CONFIRMADO') THEN current_date+(a.id%14+1)::int ELSE current_date-(a.id%6*25+k*7)::int END)+a.inicio::time inicio) t WHERE a.id<=40;
 INSERT INTO assinatura(id,cliente_id,plano_id,data_inicio,data_fim,status) SELECT a.id+20*k,a.cliente_id+35*k,a.plano_id+10*k,current_date-90,CASE WHEN a.data_fim IS NOT NULL THEN current_date+90 END,a.status FROM assinatura a CROSS JOIN generate_series(1,2) k WHERE a.id<=20;
 INSERT INTO expediente(barbeiro_id,dia_semana,inicio,fim) SELECT b.id,d,'00:00'::time,'23:59:59'::time FROM barbeiro b CROSS JOIN generate_series(1,7) d WHERE b.id>15 AND b.id<=45;
 DO $$ DECLARE t text; BEGIN FOREACH t IN ARRAY ARRAY['barbearia','cliente','cliente_barbearia','barbeiro','servico','plano','agendamento','assinatura'] LOOP EXECUTE format('SELECT setval(pg_get_serial_sequence(%L,''id''),(SELECT max(id) FROM %I),true)',t,t); END LOOP; END $$;
