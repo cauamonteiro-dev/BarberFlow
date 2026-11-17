@@ -2,7 +2,7 @@ import ResponsiveTable from "./ResponsiveTable";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api, errorMessage } from "./api";
 import { BrandRail } from "./AuthShell";
-export default function AdminSettings() {
+export default function AdminSettings({ globalAdmin = false }) {
   const [shops, setShops] = useState([]),
     [shop, setShop] = useState(""),
     [barbers, setBarbers] = useState([]),
@@ -173,7 +173,9 @@ export default function AdminSettings() {
                       setAccount({ ...account, perfil: e.target.value })
                     }
                   >
-                    <option value="ADMIN">Administrador</option>
+                    {globalAdmin && (
+                      <option value="BARBEARIA">Barbearia</option>
+                    )}
                     <option value="BARBEIRO">Barbeiro</option>
                     <option value="CLIENTE">Cliente</option>
                   </select>
@@ -248,8 +250,10 @@ export default function AdminSettings() {
                       <td>{a.email}</td>
                       <td>{a.perfil}</td>
                       <td>
-                        {a.perfil === "CLIENTE" ? (
-                          <span>Gerencie o v?nculo em Clientes</span>
+                        {a.perfil === "CLIENTE" ||
+                        (!globalAdmin &&
+                          ["ADMIN", "BARBEARIA"].includes(a.perfil)) ? (
+                          <span>Acesso vinculado à unidade</span>
                         ) : (
                           <button
                             className="secondary"

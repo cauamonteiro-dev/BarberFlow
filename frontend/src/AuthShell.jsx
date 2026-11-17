@@ -39,9 +39,11 @@ export default function AuthShell() {
     setRole(
       u.papeis.some((p) => p.perfil === "ADMIN")
         ? "ADMIN"
-        : u.papeis.some((p) => p.perfil === "BARBEIRO")
-          ? "BARBEIRO"
-          : "CLIENTE",
+        : u.papeis.some((p) => p.perfil === "BARBEARIA")
+          ? "BARBEARIA"
+          : u.papeis.some((p) => p.perfil === "BARBEIRO")
+            ? "BARBEIRO"
+            : "CLIENTE",
     );
   }
   useEffect(() => {
@@ -226,7 +228,8 @@ export default function AuthShell() {
               <option key={r} value={r}>
                 {
                   {
-                    ADMIN: "Administrador",
+                    ADMIN: "Administrador geral",
+                    BARBEARIA: "Barbearia",
                     BARBEIRO: "Barbeiro",
                     CLIENTE: "Cliente",
                   }[r]
@@ -235,7 +238,7 @@ export default function AuthShell() {
             ))}
           </select>
         </label>
-        {role === "ADMIN" && (
+        {["ADMIN", "BARBEARIA"].includes(role) && (
           <button className="secondary" onClick={() => setSettings(!settings)}>
             {settings ? "Voltar à gestão" : "Acessos e horários"}
           </button>
@@ -249,11 +252,11 @@ export default function AuthShell() {
           {error}
         </div>
       )}
-      {role === "ADMIN" ? (
+      {["ADMIN", "BARBEARIA"].includes(role) ? (
         settings ? (
-          <AdminSettings />
+          <AdminSettings globalAdmin={role === "ADMIN"} />
         ) : (
-          <App />
+          <App globalAdmin={role === "ADMIN"} />
         )
       ) : role === "CLIENTE" ? (
         <CustomerPortal />
