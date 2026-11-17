@@ -15,7 +15,7 @@ import br.com.barberflow.barbearia.BarbeariaRepository;
 public class PortalController {
  private final Acesso acesso;private final JdbcTemplate db;private final GestaoService service;private final BarbeariaRepository lojas;
  public PortalController(Acesso a,JdbcTemplate d,GestaoService s,BarbeariaRepository l){acesso=a;db=d;service=s;lojas=l;}
- @GetMapping("/barbearias") public Object lojas(){var c=acesso.conta();if(c.clienteId()!=null)return db.queryForList("select id,nome,ativa from barbearia where ativa=true order by nome");return db.queryForList("select distinct b.id,b.nome,b.ativa from barbearia b join permissao p on p.barbearia_id=b.id where p.usuario_id=? order by b.nome",c.id());}
+ @GetMapping("/barbearias") public Object lojas(){var c=acesso.conta();if(acesso.global())return db.queryForList("select id,nome,ativa from barbearia order by nome");if(c.clienteId()!=null)return db.queryForList("select id,nome,ativa from barbearia where ativa=true order by nome");return db.queryForList("select distinct b.id,b.nome,b.ativa from barbearia b join permissao p on p.barbearia_id=b.id where p.usuario_id=? order by b.nome",c.id());}
  private Long profissional(Long loja,String perfil){if(perfil.equals("BARBEIRO")){var id=acesso.profissional(loja);if(id==null)acesso.negar();return id;}if(!perfil.equals("CLIENTE")||acesso.conta().clienteId()==null)acesso.negar();return null;}
  @GetMapping("/painel") public Object painel(@RequestParam Long barbeariaId,@RequestParam String perfil){
    Long barbeiro=profissional(barbeariaId,perfil);Long cliente=acesso.conta().clienteId();

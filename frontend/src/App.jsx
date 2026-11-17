@@ -1,3 +1,4 @@
+import ReportDashboard from "./ReportDashboard";
 import ResponsiveTable from "./ResponsiveTable";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "./api";
@@ -100,7 +101,7 @@ function Badge({ value }) {
   );
 }
 
-export default function App() {
+export default function App({ globalAdmin = false }) {
   const { theme, toggleTheme } = useTheme();
   const [page, setPage] = useState("resumo"),
     [shops, setShops] = useState([]),
@@ -462,21 +463,23 @@ export default function App() {
         </a>
         <div className="workspace-label">SEU ESPAÇO</div>
         <nav aria-label="Navegação principal">
-          {pages.map(([id, label, icon]) => (
-            <button
-              key={id}
-              className={page === id ? "nav active" : "nav"}
-              aria-current={page === id ? "page" : undefined}
-              title={label}
-              onClick={() => navigate(id)}
-            >
-              <span aria-hidden="true">{icon}</span>
-              {label}
-              {id === "agendamentos" && agenda.length > 0 && (
-                <small>{agenda.length}</small>
-              )}
-            </button>
-          ))}
+          {pages
+            .filter(([id]) => globalAdmin || id !== "barbearias")
+            .map(([id, label, icon]) => (
+              <button
+                key={id}
+                className={page === id ? "nav active" : "nav"}
+                aria-current={page === id ? "page" : undefined}
+                title={label}
+                onClick={() => navigate(id)}
+              >
+                <span aria-hidden="true">{icon}</span>
+                {label}
+                {id === "agendamentos" && agenda.length > 0 && (
+                  <small>{agenda.length}</small>
+                )}
+              </button>
+            ))}
         </nav>
         <div className="sidebar-foot">
           <span className="avatar">BF</span>
@@ -579,8 +582,8 @@ export default function App() {
           )}
           {!selected?.ativa && shop && (
             <div className="alert">
-              Esta barbearia está inativa. Ative-a em Barbearias para criar
-              novos vínculos e atendimentos.
+              Esta barbearia está inativa. Solicite ao administrador geral a
+              ativação para criar novos vínculos e atendimentos.
             </div>
           )}
           {loading ? (
@@ -592,13 +595,27 @@ export default function App() {
               <span>⌂</span>
               <h2>Vamos abrir as portas?</h2>
               <p>Cadastre a primeira barbearia para começar.</p>
-              <button className="primary" onClick={() => open("barbearias")}>
-                Cadastrar barbearia
+              <button
+                className="primary"
+                disabled={!globalAdmin}
+                onClick={() => open("barbearias")}
+              >
+                {globalAdmin
+                  ? "Cadastrar barbearia"
+                  : "Nenhuma unidade autorizada"}
               </button>
             </div>
           ) : error ? null : (
             <>
-              {(page === "resumo" || page === "relatorios") && (
+              {page === "relatorios" && (
+                <ReportDashboard
+                  key={shop}
+                  shop={shop}
+                  barbers={data.barbeiros}
+                  services={data.servicos}
+                />
+              )}
+              {page === "resumo" && (
                 <>
                   {page === "resumo" && (
                     <div className="welcome">
@@ -626,38 +643,6 @@ export default function App() {
                           height="1254"
                         />
                       </div>
-                    </div>
-                  )}
-                  {page === "relatorios" && (
-                    <div className="filters">
-                      <label>
-                        De
-                        <input
-                          type="date"
-                          value={filters.de}
-                          onChange={(e) =>
-                            setFilters((f) => ({ ...f, de: e.target.value }))
-                          }
-                        />
-                      </label>
-                      <label>
-                        Até
-                        <input
-                          type="date"
-                          value={filters.ate}
-                          onChange={(e) =>
-                            setFilters((f) => ({ ...f, ate: e.target.value }))
-                          }
-                        />
-                      </label>
-                      <button
-                        className="secondary"
-                        onClick={() =>
-                          setFilters({ de: "", ate: "", status: "" })
-                        }
-                      >
-                        Limpar filtros
-                      </button>
                     </div>
                   )}
                   <div className="stats">
@@ -701,149 +686,96 @@ export default function App() {
                       </article>
                     ))}
                   </div>
-                  {page === "resumo" ? (
-                    <div className="dashboard-grid">
-                      <section className="panel">
-                        <div className="panel-heading">
-                          <div>
-                            <h2>Agenda de hoje</h2>
-                            <p>Um cuidado de cada vez.</p>
-                          </div>
-                          <button
-                            className="text-button"
-                            onClick={() => navigate("agendamentos")}
-                          >
-                            Ver agenda →
-                          </button>
-                        </div>
-                        {agenda.length ? (
-                          <div className="today-list">
-                            {agenda.map((a) => (
-                              <button
-                                className="appointment"
-                                key={a.id}
-                                onClick={() => open("agendamentos", a)}
-                              >
-                                <time>
-                                  {a.inicio.slice(11, 16)}
-                                  <small>{a.fim.slice(11, 16)}</small>
-                                </time>
-                                <span className="client-initial">
-                                  {names("clientes", a.clienteId).slice(0, 1)}
-                                </span>
-                                <span className="appointment-name">
-                                  <strong>
-                                    {names("clientes", a.clienteId)}
-                                  </strong>
-                                  <small>
-                                    {names("servicos", a.servicoId)} •{" "}
-                                    {names("barbeiros", a.barbeiroId)}
-                                  </small>
-                                </span>
-                                <Badge value={a.status} />
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="empty compact">
-                            <span>▦</span>
-                            <h3>O dia está livre por aqui.</h3>
-                            <p>
-                              Os atendimentos de hoje aparecerão neste espaço.
-                            </p>
-                            <button
-                              className="text-button"
-                              onClick={() => open("agendamentos")}
-                            >
-                              Agendar um atendimento →
-                            </button>
-                          </div>
-                        )}
-                      </section>
-                      <section className="panel quick">
-                        <div className="panel-heading">
-                          <div>
-                            <h2>Da casa</h2>
-                            <p>Tudo pronto para atender.</p>
-                          </div>
-                        </div>
-                        <div className="quick-number">
-                          <span>Profissionais ativos</span>
-                          <strong>{report?.resumo.barbeirosAtivos ?? 0}</strong>
-                        </div>
-                        <div className="quick-number">
-                          <span>Serviços disponíveis</span>
-                          <strong>{report?.resumo.servicosAtivos ?? 0}</strong>
-                        </div>
-                        <div className="quick-number">
-                          <span>Atendimentos concluídos</span>
-                          <strong>{report?.resumo.concluidos ?? 0}</strong>
-                        </div>
-                        <div className="quick-actions">
-                          <button onClick={() => open("clientes")}>
-                            ♙ Cadastrar cliente <span>↗</span>
-                          </button>
-                          <button onClick={() => navigate("servicos")}>
-                            ◇ Explorar serviços <span>↗</span>
-                          </button>
-                          <button onClick={() => navigate("relatorios")}>
-                            ▥ Consultar relatórios <span>↗</span>
-                          </button>
-                        </div>
-                      </section>
-                    </div>
-                  ) : (
-                    <div className="panel">
+                  <div className="dashboard-grid">
+                    <section className="panel">
                       <div className="panel-heading">
                         <div>
-                          <h2>Atendimentos por profissional</h2>
+                          <h2>Agenda de hoje</h2>
+                          <p>Um cuidado de cada vez.</p>
+                        </div>
+                        <button
+                          className="text-button"
+                          onClick={() => navigate("agendamentos")}
+                        >
+                          Ver agenda →
+                        </button>
+                      </div>
+                      {agenda.length ? (
+                        <div className="today-list">
+                          {agenda.map((a) => (
+                            <button
+                              className="appointment"
+                              key={a.id}
+                              onClick={() => open("agendamentos", a)}
+                            >
+                              <time>
+                                {a.inicio.slice(11, 16)}
+                                <small>{a.fim.slice(11, 16)}</small>
+                              </time>
+                              <span className="client-initial">
+                                {names("clientes", a.clienteId).slice(0, 1)}
+                              </span>
+                              <span className="appointment-name">
+                                <strong>
+                                  {names("clientes", a.clienteId)}
+                                </strong>
+                                <small>
+                                  {names("servicos", a.servicoId)} •{" "}
+                                  {names("barbeiros", a.barbeiroId)}
+                                </small>
+                              </span>
+                              <Badge value={a.status} />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="empty compact">
+                          <span>▦</span>
+                          <h3>O dia está livre por aqui.</h3>
                           <p>
-                            Atendimentos em aberto pela data agendada;
-                            concluídos pela data de conclusão. Valores dos
-                            serviços realizados, sem representar pagamentos
-                            recebidos.
+                            Os atendimentos de hoje aparecerão neste espaço.
                           </p>
+                          <button
+                            className="text-button"
+                            onClick={() => open("agendamentos")}
+                          >
+                            Agendar um atendimento →
+                          </button>
+                        </div>
+                      )}
+                    </section>
+                    <section className="panel quick">
+                      <div className="panel-heading">
+                        <div>
+                          <h2>Da casa</h2>
+                          <p>Tudo pronto para atender.</p>
                         </div>
                       </div>
-                      <div className="table-wrap">
-                        <ResponsiveTable>
-                          <thead>
-                            <tr>
-                              <th>Profissional</th>
-                              <th>Agendamentos</th>
-                              <th>Concluídos</th>
-                              <th>Valor dos serviços concluídos</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {report?.barbeiros.map((b) => (
-                              <tr key={b.id}>
-                                <td>
-                                  <strong>{b.nome}</strong>
-                                </td>
-                                <td>{b.agendamentos}</td>
-                                <td>{b.concluidos}</td>
-                                <td>{cash(b.valorServicosConcluidos)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </ResponsiveTable>
+                      <div className="quick-number">
+                        <span>Profissionais ativos</span>
+                        <strong>{report?.resumo.barbeirosAtivos ?? 0}</strong>
                       </div>
-                      <p className="report-note">
-                        {report?.resumo.atendimentosEstimados || 0}{" "}
-                        atendimento(s) concluído(s) com valor histórico
-                        estimado. Os demais usam o preço combinado na reserva.
-                      </p>
-                      <div className="status-totals">
-                        {report?.porStatus.map((x) => (
-                          <div key={x.status}>
-                            <Badge value={x.status} />
-                            <strong>{x.quantidade}</strong>
-                          </div>
-                        ))}
+                      <div className="quick-number">
+                        <span>Serviços disponíveis</span>
+                        <strong>{report?.resumo.servicosAtivos ?? 0}</strong>
                       </div>
-                    </div>
-                  )}
+                      <div className="quick-number">
+                        <span>Atendimentos concluídos</span>
+                        <strong>{report?.resumo.concluidos ?? 0}</strong>
+                      </div>
+                      <div className="quick-actions">
+                        <button onClick={() => open("clientes")}>
+                          ♙ Cadastrar cliente <span>↗</span>
+                        </button>
+                        <button onClick={() => navigate("servicos")}>
+                          ◇ Explorar serviços <span>↗</span>
+                        </button>
+                        <button onClick={() => navigate("relatorios")}>
+                          ▥ Consultar relatórios <span>↗</span>
+                        </button>
+                      </div>
+                    </section>
+                  </div>
                 </>
               )}
               {!["resumo", "relatorios"].includes(page) && (

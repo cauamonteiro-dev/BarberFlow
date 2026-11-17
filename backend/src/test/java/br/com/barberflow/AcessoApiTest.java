@@ -100,10 +100,47 @@ class AcessoApiTest {
   as(2,put("/api/portal/atendimentos/"+id).contentType("application/json").content("{\"status\":\"CONCLUIDO\"}")).andExpect(status().isOk());db.update("update servico set preco=999 where id=1");
   as(1,get("/api/relatorios").param("barbeariaId","1").param("de",LocalDate.now().toString()).param("ate",LocalDate.now().toString())).andExpect(status().isOk()).andExpect(jsonPath("resumo.valorServicosConcluidos").value(50)).andExpect(jsonPath("resumo.atendimentosEstimados").value(0));
  }
- @Test void administratorCannotRemoveLastAdministrator()throws Exception{Long id=db.queryForObject("select id from permissao where usuario_id=1",Long.class);as(1,delete("/api/administracao/1/acessos/"+id)).andExpect(status().isConflict());}
+ @Test void administratorCannotRemoveLastAdministrator()throws Exception{db.update("update usuario set admin_global=true where id=1");Long id=db.queryForObject("select id from permissao where usuario_id=1",Long.class);as(1,delete("/api/administracao/1/acessos/"+id)).andExpect(status().isConflict());}
  @Test void registrationCannotClaimAnExistingClientByEmail()throws Exception{
   mvc.perform(post("/api/auth/cadastro").with(csrf()).contentType("application/json").content("{\"nome\":\"Impostor\",\"email\":\"ana@example.com\",\"senha\":\"Segredo!2026\"}")).andExpect(status().isConflict());
   mvc.perform(post("/api/auth/cadastro").with(csrf()).contentType("application/json").content("{\"nome\":\"Novo\",\"email\":\"novo@example.com\",\"senha\":\"Segredo!2026\"}")).andExpect(status().isCreated());
   assertThat(db.queryForObject("select senha_hash from usuario where email='novo@example.com'",String.class)).startsWith("$2");
  }
+ @Test void barbeariaRoleIsRestrictedAcrossListsIdsReportsAndManagement()throws Exception{
+  db.update("update permissao set perfil='BARBEARIA' where usuario_id=1");
+  as(1,get("/api/auth/me")).andExpect(jsonPath("papeis[0].perfil").value("BARBEARIA"));
+  as(1,get("/api/barbearias")).andExpect(jsonPath("$.length()").value(1));
+  as(1,get("/api/portal/barbearias")).andExpect(jsonPath("$.length()").value(1));
+  for(String route:List.of("/api/barbearias/2","/api/barbeiros/2","/api/servicos/2","/api/administracao/2/acessos","/api/relatorios/dashboard?barbeariaId=2"))as(1,get(route)).andExpect(status().isForbidden());
+  as(1,post("/api/barbearias").contentType("application/json").content("{\"nome\":\"Intrusa\",\"ativa\":true}")).andExpect(status().isForbidden());
+  as(1,post("/api/administracao/1/acessos").contentType("application/json").content("{\"nome\":\"Gestor\",\"email\":\"gestor@example.com\",\"senha\":\"Segredo!2026\",\"perfil\":\"BARBEARIA\"}")).andExpect(status().isForbidden());
+  as(1,put("/api/servicos/1").contentType("application/json").content("{\"barbeariaId\":1,\"nome\":\"Corte novo\",\"preco\":60,\"duracaoMin\":30,\"status\":\"ATIVO\"}")).andExpect(status().isOk());
+ }
+ @Test void globalAdministratorSeesAllShopsAndCreatesOnlyLocalManagementThroughTheForm()throws Exception{
+  db.update("update usuario set admin_global=true where id=1");
+  as(1,get("/api/auth/me")).andExpect(jsonPath("papeis[0].perfil").value("ADMIN"));
+  as(1,get("/api/barbearias")).andExpect(jsonPath("$.length()").value(2));
+  as(1,get("/api/servicos/2")).andExpect(status().isOk());
+  var payload="{\"nome\":\"Gestor\",\"email\":\"gestor@example.com\",\"senha\":\"Segredo!2026\",\"perfil\":\"BARBEARIA\"}";
+  as(1,post("/api/administracao/1/acessos").contentType("application/json").content(payload)).andExpect(status().isOk());
+  as(1,post("/api/administracao/2/acessos").contentType("application/json").content(payload)).andExpect(status().isConflict());
+  as(1,post("/api/administracao/1/acessos").contentType("application/json").content(payload.replace("BARBEARIA","ADMIN"))).andExpect(status().isConflict());
+  assertThat(db.queryForObject("select admin_global from usuario where email='gestor@example.com'",Boolean.class)).isFalse();
+ }
+ @Test void strategicDashboardFiltersHistoricalAmountsAndComparesPeriods()throws Exception{
+  var now=LocalDate.now();long done=booking(1,now.minusDays(2).atTime(10,0));
+  db.update("update agendamento set status='CONCLUIDO',concluido_em=? where id=?",now.minusDays(1).atTime(11,0),done);
+  long cancelled=booking(2,now.minusDays(3).atTime(10,0));db.update("update agendamento set status='CANCELADO' where id=?",cancelled);
+  booking(1,now.plusDays(1).atTime(10,0));
+  long old=booking(1,now.minusYears(1).atTime(10,0));db.update("update agendamento set status='CONCLUIDO',concluido_em=? where id=?",now.minusYears(1).atTime(11,0),old);
+  db.update("update servico set preco=999 where id=1");
+  var result=as(1,get("/api/relatorios/dashboard").param("barbeariaId","1").param("barbeiroId","1").param("servicoId","1")).andExpect(status().isOk()).andExpect(jsonPath("indicadores.agendamentos").value(3)).andExpect(jsonPath("indicadores.concluidos").value(1)).andExpect(jsonPath("indicadores.faturamento").value(50)).andExpect(jsonPath("indicadores.ticketMedio").value(50)).andExpect(jsonPath("indicadores.cancelamentoPercentual").value(33.33)).andExpect(jsonPath("indicadores.valorEmAberto").value(50)).andExpect(jsonPath("anterior.faturamento").value(50)).andReturn();
+  var report=json.readTree(result.getResponse().getContentAsString());assertThat(report.get("serie").size()).isEqualTo(12);
+  as(1,get("/api/relatorios/dashboard").param("barbeariaId","1").param("barbeiroId","2")).andExpect(status().isForbidden());
+  as(1,get("/api/relatorios/dashboard").param("barbeariaId","1").param("servicoId","2")).andExpect(status().isForbidden());
+  as(1,get("/api/relatorios/dashboard").param("barbeariaId","1").param("de","2026-12-01").param("ate","2026-01-01")).andExpect(status().isConflict());
+  as(2,get("/api/relatorios/dashboard").param("barbeariaId","1")).andExpect(status().isForbidden());
+  as(3,get("/api/relatorios/dashboard").param("barbeariaId","1")).andExpect(status().isForbidden());
+ }
+
 }

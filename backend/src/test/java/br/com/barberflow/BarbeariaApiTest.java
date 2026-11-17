@@ -50,6 +50,7 @@ class BarbeariaApiTest {
     }
 
     private org.springframework.test.web.servlet.ResultActions perform(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request) throws Exception {
+        jdbc.update("update usuario set admin_global=true where id=1");
         jdbc.update("insert into permissao(usuario_id,barbearia_id,perfil) select 1,id,'ADMIN' from barbearia on conflict do nothing");
         return mvc.perform(request.with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin-test@barberflow.local"))
             .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()));
@@ -103,7 +104,7 @@ class BarbeariaApiTest {
 
     @Test
     void deniesAdministrativeListWithoutAnyShopRole() throws Exception {
-        perform(get("/api/barbearias"))
+        mvc.perform(get("/api/barbearias").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin-test@barberflow.local")))
                 .andExpect(status().isForbidden());
     }
 
@@ -138,7 +139,7 @@ class BarbeariaApiTest {
 
     @Test
     void deniesUnassignedShopWithoutDisclosingExistence() throws Exception {
-        perform(get("/api/barbearias/999"))
+        mvc.perform(get("/api/barbearias/999").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin-test@barberflow.local")))
                 .andExpect(status().isForbidden())
                 ;
     }
@@ -159,7 +160,7 @@ class BarbeariaApiTest {
         String url = POSTGRES.getJdbcUrl("postgres", "barberflow_demo_test");
         Flyway demo = Flyway.configure().dataSource(url, "postgres", "postgres")
                 .locations("classpath:db/migration", "classpath:db/demo").load();
-        assertThat(demo.migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(demo.migrate().migrationsExecuted).isEqualTo(5);
         assertThat(demo.migrate().migrationsExecuted).isZero();
         try (Connection connection = java.sql.DriverManager.getConnection(url, "postgres", "postgres");
              Statement statement = connection.createStatement()) {
@@ -170,13 +171,17 @@ class BarbeariaApiTest {
                     + (SELECT count(*) FROM agendamento) + (SELECT count(*) FROM assinatura)
                     """)) {
                 result.next();
-                assertThat(result.getInt(1)).isEqualTo(200);
+                assertThat(result.getInt(1)).isEqualTo(600);
             }
+            for(var entry:java.util.Map.of("barbearia",15,"cliente",105,"cliente_barbearia",150,"barbeiro",45,"servico",75,"plano",30,"agendamento",120,"assinatura",60).entrySet()) {
+                try(var result=statement.executeQuery("select count(*) from "+entry.getKey())){result.next();assertThat(result.getInt(1)).as(entry.getKey()).isEqualTo(entry.getValue());}
+            }
+            try(var result=statement.executeQuery("select count(distinct barbearia_id) from agendamento")){result.next();assertThat(result.getInt(1)).isEqualTo(15);}
             try (var result = statement.executeQuery("""
                     INSERT INTO barbearia (nome, ativa) VALUES ('Nova após seed', true) RETURNING id
                     """)) {
                 result.next();
-                assertThat(result.getLong(1)).isEqualTo(6L);
+                assertThat(result.getLong(1)).isEqualTo(16L);
             }
         }
     }
@@ -350,7 +355,7 @@ class BarbeariaApiTest {
         perform(get("/api/agendamentos").param("barbeariaId","1").param("de","2027-02-01"))
             .andExpect(content().json("[]"));
         perform(get("/api/servicos").param("barbeariaId","9999"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
     }
 
 

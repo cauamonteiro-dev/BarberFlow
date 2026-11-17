@@ -43,3 +43,9 @@ Por exemplo, um agendamento relaciona:
 Da mesma forma, uma assinatura relaciona um cliente a um plano oferecido por uma barbearia.
 
 Portanto, o sistema necessita armazenar, relacionar, consultar, alterar e validar essas informações de forma consistente.
+
+## Perfis e análise estratégica implementados
+
+Acrescentar requisitos de isolamento também na API, cobrindo listagens, consultas diretas por ID, escrita, gestão de acessos, horários e relatórios. O administrador geral consulta unidades por seleção; cada Barbearia recebe somente as unidades autorizadas pela API.
+
+Não existe processamento de pagamento. Faturamento realizado é a soma de `valor_acordado` dos atendimentos concluídos na seleção. Valores históricos estimados continuam identificados. Agendados e confirmados compõem uma previsão em aberto, separada do faturamento realizado.
