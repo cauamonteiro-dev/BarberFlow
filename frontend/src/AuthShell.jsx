@@ -107,8 +107,14 @@ export default function AuthShell() {
   if (!user)
     return (
       <div className="auth-page">
-        <section className="auth-brand">
-          <img src="/brand/barberflow.png" alt="BarberFlow" />
+        <section className="auth-brand auth-brand-photo">
+          <img
+            className="auth-brand-logo"
+            src="/brand/barberflow.png"
+            alt="BarberFlow"
+            width="210"
+            height="210"
+          />
           <h1>
             Seu estilo.
             <br />

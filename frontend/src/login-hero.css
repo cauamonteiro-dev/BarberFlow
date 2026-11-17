@@ -1,0 +1,60 @@
+.auth-brand-photo {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  align-items: center;
+  text-align: center;
+  padding: clamp(32px, 5vw, 72px);
+  background: #101e2a;
+}
+.auth-brand-photo::before {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  inset: -12px;
+  background: url("/brand/barbershop-login.jpg") center / cover no-repeat;
+  filter: blur(3px);
+}
+.auth-brand-photo::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(9 19 27 / 24%), rgb(9 19 27 / 76%));
+}
+.auth-brand-photo > .auth-brand-logo {
+  width: clamp(170px, 19vw, 250px);
+  height: auto;
+  aspect-ratio: 1;
+  flex-shrink: 0;
+  box-shadow: 0 16px 50px rgb(0 0 0 / 30%);
+}
+.auth-brand-photo h1 {
+  max-width: 600px;
+  margin: 32px 0 18px;
+  font-size: clamp(28px, 3vw, 44px);
+  text-wrap: balance;
+  text-shadow: 0 2px 16px rgb(0 0 0 / 35%);
+}
+.auth-brand-photo p {
+  margin: 0;
+  color: #f0e9dd;
+  line-height: 1.7;
+}
+@media (max-width: 620px) {
+  .auth-brand-photo {
+    flex-direction: column;
+    gap: 0;
+    padding: 30px 22px;
+    min-height: 270px;
+  }
+  .auth-brand-photo > .auth-brand-logo {
+    width: 124px;
+    height: 124px;
+  }
+  .auth-brand-photo h1 {
+    margin: 20px 0 0;
+    font-size: 23px;
+    line-height: 1.35;
+  }
+}
