@@ -34,6 +34,9 @@ export default function Portal({
     [busy, setBusy] = useState(false),
     [form, setForm] = useState(null),
     [slots, setSlots] = useState([]),
+    [slotsState, setSlotsState] = useState("idle"),
+    [slotsError, setSlotsError] = useState(""),
+    [slotsRetry, setSlotsRetry] = useState(0),
     [day, setDay] = useState(today()),
     [hours, setHours] = useState(null),
     [clientView, setClientView] = useState(initialView),
@@ -111,10 +114,15 @@ export default function Portal({
   }, [load]);
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     setSlots([]);
-    if (form?.barbeiroId && form?.servicoId && day)
+    setSlotsError("");
+    if (form?.barbeiroId && form?.servicoId && day) {
+      setSlotsState("loading");
       api
         .get("/portal/horarios-disponiveis", {
+          signal: controller.signal,
+          timeout: 60000,
           params: {
             barbeariaId: shop,
             barbeiroId: form.barbeiroId,
@@ -124,15 +132,25 @@ export default function Portal({
           },
         })
         .then((r) => {
-          if (active) setSlots(r.data);
+          if (active) {
+            setSlots(r.data);
+            setSlotsState("success");
+          }
         })
         .catch((e) => {
-          if (active) setError(errorMessage(e));
+          if (active) {
+            setSlotsError(
+              "Não foi possível consultar os horários. Tente novamente.",
+            );
+            setSlotsState("error");
+          }
         });
+    } else setSlotsState("idle");
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [form?.barbeiroId, form?.servicoId, form?.id, day, shop]);
+  }, [form?.barbeiroId, form?.servicoId, form?.id, day, shop, slotsRetry]);
   useEffect(() => {
     if (client && selectedShop && ready && initialView === "booking") {
       setForm({
@@ -452,11 +470,21 @@ export default function Portal({
                     <select
                       required
                       value={form.inicio}
+                      disabled={slotsState !== "success" || !slots.length}
+                      aria-busy={slotsState === "loading"}
                       onChange={(e) =>
                         setForm({ ...form, inicio: e.target.value })
                       }
                     >
-                      <option value="">Selecione…</option>
+                      <option value="">
+                        {slotsState === "loading"
+                          ? "Consultando horários…"
+                          : slotsState === "error"
+                            ? "Falha ao consultar"
+                            : slotsState === "success" && !slots.length
+                              ? "Nenhum horário disponível"
+                              : "Selecione…"}
+                      </option>
                       {slots.map((s) => (
                         <option key={s.inicio} value={s.inicio}>
                           {s.inicio.slice(11, 16)} — {s.fim.slice(11, 16)}
@@ -464,10 +492,29 @@ export default function Portal({
                       ))}
                     </select>
                   </label>
-                  <p className="form-note full">
-                    {slots.length
-                      ? "A disponibilidade é confirmada novamente ao salvar."
-                      : "Escolha o profissional, serviço e dia. Se não houver horários, experimente outra data."}
+                  <p
+                    className="form-note full"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {slotsState === "loading"
+                      ? "Consultando os horários disponíveis…"
+                      : slotsState === "error"
+                        ? slotsError
+                        : slotsState === "success"
+                          ? slots.length
+                            ? "A disponibilidade é confirmada novamente ao salvar."
+                            : "Não há horários disponíveis nesta data. Escolha outro dia ou profissional."
+                          : "Escolha o profissional, serviço e dia para consultar os horários."}
+                    {slotsState === "error" && (
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setSlotsRetry((n) => n + 1)}
+                      >
+                        Tentar novamente
+                      </button>
+                    )}
                     {form.id &&
                       " O valor combinado é mantido ao remarcar o mesmo serviço."}
                   </p>
@@ -480,7 +527,14 @@ export default function Portal({
                   >
                     Voltar
                   </button>
-                  <button className="primary" disabled={busy}>
+                  <button
+                    className="primary"
+                    disabled={
+                      busy ||
+                      slotsState !== "success" ||
+                      !slots.some((s) => s.inicio === form.inicio)
+                    }
+                  >
                     Salvar agendamento
                   </button>
                 </div>
