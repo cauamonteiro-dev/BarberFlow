@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "./api";
 import { useTheme } from "./useTheme";
 import ThemeToggle from "./ThemeToggle";
+import { ShopIdentity, ShopLogo } from "./ShopIdentity";
 
 const pages = [
   ["resumo", "Visão geral", "◈"],
@@ -101,7 +102,7 @@ function Badge({ value }) {
   );
 }
 
-export default function App({ globalAdmin = false }) {
+export default function App({ globalAdmin = false, onReady }) {
   const { theme, toggleTheme } = useTheme();
   const [page, setPage] = useState("resumo"),
     [shops, setShops] = useState([]),
@@ -133,6 +134,7 @@ export default function App({ globalAdmin = false }) {
     opener = useRef(null);
   const selected = shops.find((x) => String(x.id) === shop);
   const load = useCallback(async () => {
+    let prepared = false;
     const request = ++requestId.current;
     setLoading(true);
     setError("");
@@ -151,6 +153,7 @@ export default function App({ globalAdmin = false }) {
       }
       if (!chosen) {
         setReport(null);
+        prepared = true;
         return;
       }
       const params = { barbeariaId: chosen };
@@ -191,12 +194,15 @@ export default function App({ globalAdmin = false }) {
         ),
       );
       setReport(summary.data);
+      prepared = true;
     } catch (e) {
+      prepared = true;
       if (request === requestId.current) setError(errorMessage(e));
     } finally {
       if (request === requestId.current) setLoading(false);
+      if (request === requestId.current && prepared) onReady?.();
     }
-  }, [shop, filters]);
+  }, [shop, filters, onReady]);
   useEffect(() => {
     load();
     return () => {
@@ -461,6 +467,9 @@ export default function App({ globalAdmin = false }) {
             <small>GESTÃO COM ESTILO</small>
           </span>
         </a>
+        {!globalAdmin && (
+          <ShopIdentity shop={selected} label="GESTÃO DA UNIDADE" />
+        )}
         <div className="workspace-label">SEU ESPAÇO</div>
         <nav aria-label="Navegação principal">
           {pages
@@ -484,13 +493,24 @@ export default function App({ globalAdmin = false }) {
         <div className="sidebar-foot">
           <span className="avatar">BF</span>
           <div>
-            BarberFlow<small>Projeto acadêmico • gestão local</small>
+            {globalAdmin
+              ? "Administrador geral"
+              : selected?.nome || "Sua barbearia"}
+            <small>
+              {globalAdmin
+                ? "BarberFlow • todas as unidades"
+                : "BarberFlow • gestão da unidade"}
+            </small>
           </div>
         </div>
       </aside>
       <main>
         <header className="topbar">
-          <span>Seu negócio, em boa companhia.</span>
+          <span>
+            {globalAdmin
+              ? "Administração geral do BarberFlow"
+              : selected?.nome || "Sua barbearia"}
+          </span>
           <div className="shop-select">
             <label htmlFor="shop">Unidade</label>
             <select
@@ -517,6 +537,12 @@ export default function App({ globalAdmin = false }) {
           </div>
         </header>
         <div className="content">
+          {!globalAdmin && (
+            <ShopIdentity
+              shop={selected}
+              label="BEM-VINDO À GESTÃO DA SUA BARBEARIA"
+            />
+          )}
           <div className="page-heading">
             <div>
               <p className="eyebrow">
@@ -636,12 +662,16 @@ export default function App({ globalAdmin = false }) {
                         </p>
                       </div>
                       <div className="welcome-art">
-                        <img
-                          src="/brand/barberflow.png"
-                          alt="Logo principal BarberFlow, em azul-marinho e dourado"
-                          width="1254"
-                          height="1254"
-                        />
+                        {!globalAdmin ? (
+                          <ShopLogo shop={selected} />
+                        ) : (
+                          <img
+                            src="/brand/barberflow.png"
+                            alt="Logo principal BarberFlow, em azul-marinho e dourado"
+                            width="1254"
+                            height="1254"
+                          />
+                        )}
                       </div>
                     </div>
                   )}

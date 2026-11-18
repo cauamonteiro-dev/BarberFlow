@@ -4,6 +4,9 @@ import { api, errorMessage } from "./api";
 import { BrandRail } from "./AuthShell";
 import { useTheme } from "./useTheme";
 import ThemeToggle from "./ThemeToggle";
+import { shopPresentation, ShopImage } from "./shopPresentation";
+import { ShopIdentity, ShopLogo } from "./ShopIdentity";
+import "./shop-search.css";
 const money = (n) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     n ?? 0,
@@ -13,7 +16,16 @@ const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
-export default function Portal({ role, selectedShop, onChooseShop }) {
+export default function Portal({
+  role,
+  selectedShop,
+  onChooseShop,
+  onViewShop,
+  onHome,
+  user,
+  onReady,
+  initialView = "booking",
+}) {
   const [shops, setShops] = useState([]),
     [shop, setShop] = useState(""),
     [data, setData] = useState(null),
@@ -24,11 +36,24 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
     [slots, setSlots] = useState([]),
     [day, setDay] = useState(today()),
     [hours, setHours] = useState(null),
-    [clientView, setClientView] = useState("booking");
+    [clientView, setClientView] = useState(initialView),
+    [barberDay, setBarberDay] = useState(today()),
+    [barberAll, setBarberAll] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const client = role === "CLIENTE";
   const requestId = useRef(0);
   const ready = data?.barbeariaId === shop;
+  const activeShop = selectedShop || shops.find((s) => String(s.id) === shop);
+  const professionalName =
+    data?.barbeiros?.[0]?.nome ||
+    user?.unidades?.find(
+      (u) => String(u.id) === shop && u.perfil === "BARBEIRO",
+    )?.profissional_nome ||
+    user?.nome ||
+    "profissional";
+  const visibleAppointments = (data?.agendamentos || []).filter(
+    (a) => client || barberAll || a.inicio.slice(0, 10) === barberDay,
+  );
   useEffect(() => {
     let active = true;
     api
@@ -37,9 +62,15 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
         if (active) {
           setShops(r.data);
           setShop(String(selectedShop?.id || r.data[0]?.id || ""));
+          if (!r.data.length) onReady?.();
         }
       })
-      .catch((e) => setError(errorMessage(e)));
+      .catch((e) => {
+        if (active) {
+          setError(errorMessage(e));
+          onReady?.();
+        }
+      });
     return () => {
       active = false;
     };
@@ -65,8 +96,10 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
       setHours(calendar);
     } catch (e) {
       if (generation === requestId.current) setError(errorMessage(e));
+    } finally {
+      if (generation === requestId.current) onReady?.();
     }
-  }, [shop, role, client]);
+  }, [shop, role, client, onReady]);
   useEffect(() => {
     setData(null);
     setHours(null);
@@ -101,7 +134,7 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
     };
   }, [form?.barbeiroId, form?.servicoId, form?.id, day, shop]);
   useEffect(() => {
-    if (client && selectedShop && ready) {
+    if (client && selectedShop && ready && initialView === "booking") {
       setForm({
         barbeiroId: "",
         servicoId: "",
@@ -110,7 +143,7 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
       });
       setDay(today());
     }
-  }, [client, selectedShop, ready]);
+  }, [client, selectedShop, ready, initialView]);
   const name = (kind, id) =>
     data?.[kind]?.find((x) => x.id === id)?.nome || `#${id}`;
   const payload = (a) => ({
@@ -143,7 +176,7 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
   }
   return (
     <div className="app">
-      <BrandRail />
+      <BrandRail shop={activeShop} />
       <main>
         <header className="topbar">
           <span>
@@ -181,6 +214,45 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
           </div>
         </header>
         <div className="content">
+          {client && onHome && (
+            <button
+              className="secondary back-to-home"
+              disabled={busy}
+              onClick={onHome}
+            >
+              ← Todos os meus agendamentos
+            </button>
+          )}
+          {!client && <ShopIdentity shop={activeShop} label="VOCÊ ATENDE EM" />}
+          {client && selectedShop && (
+            <section
+              className="booking-shop-banner"
+              aria-label="Barbearia escolhida"
+            >
+              <ShopImage shop={selectedShop} />
+              <div>
+                <ShopLogo shop={selectedShop} />
+                <p className="eyebrow">VOCÊ ESTÁ AGENDANDO EM</p>
+                <h2>{selectedShop.nome}</h2>
+                <p>{shopPresentation(selectedShop).address}</p>
+                <span>
+                  Foto ilustrativa
+                  {shopPresentation(selectedShop).demo
+                    ? " • endereço fictício"
+                    : ""}
+                </span>
+              </div>
+              {onViewShop && (
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={onViewShop}
+                >
+                  Sobre a barbearia
+                </button>
+              )}
+            </section>
+          )}
           <div className="page-heading">
             <div>
               <p className="eyebrow">
@@ -191,14 +263,14 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
                   ? clientView === "booking"
                     ? "Agendar serviço"
                     : "Meus agendamentos"
-                  : "Minha agenda"}
+                  : `Olá, ${professionalName.split(" ")[0]}!`}
               </h1>
               <p>
                 {client
                   ? clientView === "booking"
                     ? "Escolha um serviço, um profissional e um horário disponível."
                     : "Somente suas reservas nesta barbearia. Você pode remarcar ou cancelar atendimentos futuros em aberto."
-                  : "Acompanhe seus horários e os clientes de cada atendimento."}
+                  : `Segue abaixo ${barberAll ? "a sua agenda" : "os agendamentos do dia"} em ${activeShop?.nome || "sua barbearia"}.`}
               </p>
             </div>
             {client && shop && (
@@ -257,6 +329,34 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
                 Meus agendamentos
               </button>
             </nav>
+          )}
+          {!client && (
+            <div className="barber-agenda-toolbar">
+              <div>
+                <strong>Minha agenda</strong>
+                <p>
+                  {professionalName} • {activeShop?.nome}
+                </p>
+              </div>
+              <label>
+                Dia da agenda
+                <input
+                  type="date"
+                  value={barberDay}
+                  onChange={(e) => {
+                    setBarberDay(e.target.value);
+                    setBarberAll(false);
+                  }}
+                />
+              </label>
+              <button
+                className="secondary"
+                aria-pressed={barberAll}
+                onClick={() => setBarberAll(!barberAll)}
+              >
+                {barberAll ? "Mostrar apenas o dia" : "Ver toda a agenda"}
+              </button>
+            </div>
           )}
           {error && (
             <div className="alert error" role="alert">
@@ -412,8 +512,12 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...data.agendamentos]
-                        .sort((a, b) => b.inicio.localeCompare(a.inicio))
+                      {[...visibleAppointments]
+                        .sort((a, b) =>
+                          client || barberAll
+                            ? b.inicio.localeCompare(a.inicio)
+                            : a.inicio.localeCompare(b.inicio),
+                        )
                         .map((a) => (
                           <tr key={a.id}>
                             {!client && (
@@ -542,9 +646,11 @@ export default function Portal({ role, selectedShop, onChooseShop }) {
                         ))}
                     </tbody>
                   </ResponsiveTable>
-                  {data.agendamentos.length === 0 && (
+                  {visibleAppointments.length === 0 && (
                     <div className="empty compact">
-                      Nenhum agendamento nesta unidade.
+                      {client || barberAll
+                        ? "Nenhum agendamento nesta unidade."
+                        : "Nenhum agendamento para este dia."}
                     </div>
                   )}
                 </div>

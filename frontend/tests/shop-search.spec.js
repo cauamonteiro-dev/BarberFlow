@@ -23,6 +23,10 @@ test("cliente pesquisa barbearias ativas sem selecionar uma unidade automaticame
     }),
   );
   await page.goto("/");
+  await page
+    .getByRole("navigation", { name: "Navegação do cliente", exact: true })
+    .getByRole("button", { name: "Barbearias", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Encontre sua barbearia", exact: true }),
   ).toBeVisible();
@@ -77,6 +81,10 @@ test("selecionar uma barbearia abre os serviços daquela unidade e permite volta
   page,
 }) => {
   await page.goto("/");
+  await page
+    .getByRole("navigation", { name: "Navegação do cliente", exact: true })
+    .getByRole("button", { name: "Barbearias", exact: true })
+    .click();
   await page
     .getByRole("searchbox", { name: "Pesquisar barbearias" })
     .fill("Central");
@@ -144,6 +152,10 @@ test("pesquisa apresenta falha recuperável e ausência de barbearias disponíve
     fail ? route.abort() : route.fulfill({ json: [] }),
   );
   await page.goto("/");
+  await page
+    .getByRole("navigation", { name: "Navegação do cliente", exact: true })
+    .getByRole("button", { name: "Barbearias", exact: true })
+    .click();
   await expect(page.getByRole("alert")).toContainText(
     "Não foi possível conectar",
   );

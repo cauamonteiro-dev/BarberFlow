@@ -56,6 +56,19 @@ class AcessoApiTest {
   mvc.perform(post("/api/auth/login").contentType("application/json").content("{\"email\":\"u1@example.com\",\"senha\":\"Segredo!2026\"}")).andExpect(status().isForbidden());
   mvc.perform(post("/api/auth/login").with(csrf()).contentType("application/json").content("{\"email\":\"u1@example.com\",\"senha\":\"errada\"}")).andExpect(status().isUnauthorized());
  }
+ @Test void customerHomeIncludesOnlyOwnBookingsAcrossShopsEvenIfAClientIdIsForged()throws Exception{
+  long own=booking(1,future());booking(2,future().plusHours(1));
+  db.update("insert into cliente_barbearia(cliente_id,barbearia_id,status) values (1,2,'ATIVO')");
+  db.update("insert into agendamento(barbearia_id,cliente_id,barbeiro_id,servico_id,inicio,fim,status,valor_acordado,valor_estimado) values (2,1,2,2,?,?,'AGENDADO',50,false)",future().plusDays(1),future().plusDays(1).plusMinutes(30));
+  db.update("update barbearia set ativa=false where id=2");
+  as(3,get("/api/portal/meus-agendamentos").param("clienteId","2")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].barbeariaNome").value("Outra")).andExpect(jsonPath("$[0].barbeariaAtiva").value(false)).andExpect(jsonPath("$[1].id").value(own)).andExpect(jsonPath("$[1].barbeiroNome").value("João")).andExpect(jsonPath("$[1].inicio").value(future().toString()+":00"));
+  as(2,get("/api/portal/meus-agendamentos")).andExpect(status().isForbidden());
+  as(5,get("/api/portal/meus-agendamentos")).andExpect(jsonPath("$.length()").value(1));
+ }
+ @Test void sessionIdentityContainsOnlyAuthorizedUnitsAndTheRealProfessionalName()throws Exception{
+  as(2,get("/api/auth/me")).andExpect(jsonPath("unidades.length()").value(1)).andExpect(jsonPath("unidades[0].nome").value("Central")).andExpect(jsonPath("unidades[0].profissional_nome").value("João"));
+  as(3,get("/api/auth/me")).andExpect(jsonPath("unidades.length()").value(0)).andExpect(jsonPath("nomeExibicao").value("Ana"));
+ }
  @Test void logoutInvalidatesSession()throws Exception{var s=login(1);mvc.perform(post("/api/auth/logout").session(s).with(csrf())).andExpect(status().isNoContent());assertThat(s.isInvalid()).isTrue();}
  @Test void administratorCannotAccessAnotherShopOrDirectResource()throws Exception{
   as(1,get("/api/barbearias")).andExpect(jsonPath("$.length()").value(1));
