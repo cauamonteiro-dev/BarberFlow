@@ -42,6 +42,30 @@ class AcessoApiTest {
  String reserva(LocalDateTime t){return "{\"barbeariaId\":1,\"barbeiroId\":1,\"servicoId\":1,\"inicio\":\""+t+"\",\"status\":\"AGENDADO\",\"valorEsperado\":50}";}
  LocalDateTime future(){return LocalDate.now().plusDays(1).atTime(10,0);}
  long booking(int cliente,LocalDateTime inicio){return db.queryForObject("insert into agendamento(barbearia_id,cliente_id,barbeiro_id,servico_id,inicio,fim,status,valor_acordado,valor_estimado) values (1,?,1,1,?,?,'AGENDADO',50,false) returning id",Long.class,cliente,inicio,inicio.plusMinutes(30));}
+ @Autowired br.com.barberflow.gestao.GestaoService gestao;
+ @Test void dailySlotsMatchIndividualAvailabilityAcrossBreaksBlocksBookingsAndRescheduling()throws Exception {
+  var dia=LocalDate.now().plusDays(2);
+  db.update("delete from expediente where barbeiro_id=1");
+  db.update("insert into expediente(barbeiro_id,dia_semana,inicio,fim) values (1,?,'09:00','12:00'),(1,?,'13:00','18:00')",dia.getDayOfWeek().getValue(),dia.getDayOfWeek().getValue());
+  long own=booking(1,dia.atTime(10,0));
+  long canceled=booking(2,dia.atTime(14,0));db.update("update agendamento set status='CANCELADO' where id=?",canceled);
+  booking(2,dia.atTime(15,0));
+  db.update("insert into bloqueio(barbeiro_id,inicio,fim,motivo) values (1,?,?,'Intervalo')",dia.atTime(11,0),dia.atTime(11,45));
+  for(Long ignore:new Long[]{null,own}) {
+   var expected=new ArrayList<Map<String,Object>>();
+   for(int minute=0;minute<1440;minute+=15){var inicio=dia.atStartOfDay().plusMinutes(minute);var slot=gestao.disponibilidade(1L,1L,1L,inicio,ignore);if(Boolean.TRUE.equals(slot.get("disponivel")))expected.add(slot);}
+   assertThat(gestao.horariosDisponiveis(1L,1L,1L,dia,ignore)).isEqualTo(expected);
+  }
+  as(3,get("/api/portal/horarios-disponiveis").param("barbeariaId","1").param("barbeiroId","1").param("servicoId","1").param("dia",dia.toString())).andExpect(status().isOk()).andExpect(jsonPath("$[0].inicio").value(dia+"T09:00:00"));
+  assertThat(gestao.horariosDisponiveis(1L,1L,1L,dia,null)).noneMatch(slot->slot.get("inicio").equals(dia.atTime(10,0)));
+  assertThat(gestao.horariosDisponiveis(1L,1L,1L,dia,own)).anyMatch(slot->slot.get("inicio").equals(dia.atTime(10,0)));
+ }
+ @Test void dailySlotsRejectOtherUnitsAndReturnEmptyForInactiveOrMissingWorkingHours()throws Exception {
+  var dia=LocalDate.now().plusDays(2);
+  as(3,get("/api/portal/horarios-disponiveis").param("barbeariaId","1").param("barbeiroId","2").param("servicoId","1").param("dia",dia.toString())).andExpect(status().isConflict());
+  db.update("update servico set status='INATIVO' where id=1");assertThat(gestao.horariosDisponiveis(1L,1L,1L,dia,null)).isEmpty();
+  db.update("update servico set status='ATIVO' where id=1");db.update("delete from expediente where barbeiro_id=1");assertThat(gestao.horariosDisponiveis(1L,1L,1L,dia,null)).isEmpty();
+ }
  @Test void priceMustMatchTheCustomersDisplayedQuote()throws Exception {
   as(3,post("/api/portal/agendamentos").contentType("application/json").content(reserva(future()).replace("\"valorEsperado\":50","\"valorEsperado\":40"))).andExpect(status().isConflict());
   assertThat(db.queryForObject("select count(*) from agendamento",Long.class)).isZero();

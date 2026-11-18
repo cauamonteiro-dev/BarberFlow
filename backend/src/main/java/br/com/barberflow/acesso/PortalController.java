@@ -38,7 +38,7 @@ public class PortalController {
    if(acesso.conta().clienteId()==null&&!Objects.equals(acesso.profissional(barbeariaId),barbeiroId))acesso.negar();
    if(ignorarId!=null){var a=service.agendamento(ignorarId);acesso.cliente(a.getClienteId());if(!a.getBarbeariaId().equals(barbeariaId))acesso.negar();}
    if(dia.isBefore(LocalDate.now()) || dia.isAfter(LocalDate.now().plusYears(1)))return List.of();
-   var out=new ArrayList<Map<String,Object>>();for(int minute=0;minute<1440;minute+=15){var inicio=dia.atStartOfDay().plusMinutes(minute);if(inicio.isAfter(LocalDateTime.now())){var slot=service.disponibilidade(barbeariaId,barbeiroId,servicoId,inicio,ignorarId);if(Boolean.TRUE.equals(slot.get("disponivel")))out.add(slot);}}return out;
+   return service.horariosDisponiveis(barbeariaId,barbeiroId,servicoId,dia,ignorarId);
  }
  public record Reserva(@NotNull Long barbeariaId,@NotNull Long barbeiroId,@NotNull Long servicoId,@NotNull LocalDateTime inicio,@NotNull StatusAgendamento status,java.math.BigDecimal valorEsperado){}
  @PostMapping("/agendamentos") @Transactional public Object reservar(@Valid @RequestBody Reserva r){return salvar(null,r);}

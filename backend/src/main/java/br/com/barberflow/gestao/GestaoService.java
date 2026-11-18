@@ -190,6 +190,33 @@ public class GestaoService {
             && s.getStatus()==StatusCadastro.ATIVO && horarios.disponivel(barbeiroId,inicio,fim) && agendamentos.conflitos(barbeiroId,inicio,fim,ignorar)==0;
         return Map.of("disponivel",livre,"inicio",inicio,"fim",fim);
     }
+    public List<Map<String,Object>> horariosDisponiveis(Long loja,Long barbeiroId,Long servicoId,LocalDate dia,Long ignorar) {
+        existeLoja(loja);
+        var b=barbeiro(barbeiroId); var s=servico(servicoId);
+        mesmaLoja(b.getBarbeariaId(),loja); mesmaLoja(s.getBarbeariaId(),loja);
+        if(ignorar!=null) mesmaLoja(agendamento(ignorar).getBarbeariaId(),loja);
+        if(!lojas.findById(loja).orElseThrow().isAtiva() || b.getStatus()!=StatusCadastro.ATIVO || s.getStatus()!=StatusCadastro.ATIVO) return List.of();
+        var faixas=horarios.faixas(barbeiroId).stream().filter(f->f.diaSemana()==dia.getDayOfWeek().getValue()).toList();
+        if(faixas.isEmpty()) return List.of();
+        // Read the day's occupied intervals once, instead of querying the database for every candidate.
+        var ocupados=jdbc.query("""
+            select inicio,fim from bloqueio where barbeiro_id=? and inicio<? and fim>?
+            union all
+            select inicio,fim from agendamento where barbeiro_id=? and inicio<? and fim>?
+              and status<>'CANCELADO' and (cast(? as bigint) is null or id<>?)
+            """,(rs,n)->new LocalDateTime[]{rs.getObject(1,LocalDateTime.class),rs.getObject(2,LocalDateTime.class)},
+            barbeiroId,dia.plusDays(1).atStartOfDay(),dia.atStartOfDay(),
+            barbeiroId,dia.plusDays(1).atStartOfDay(),dia.atStartOfDay(),ignorar,ignorar);
+        var agora=LocalDateTime.now();
+        var out=new ArrayList<Map<String,Object>>();
+        for(int minute=0;minute<1440;minute+=15){
+            var inicio=dia.atStartOfDay().plusMinutes(minute);var fim=inicio.plusMinutes(s.getDuracaoMin());
+            boolean cabe=dia.equals(fim.toLocalDate()) && faixas.stream().anyMatch(f->!inicio.toLocalTime().isBefore(f.inicio())&&!fim.toLocalTime().isAfter(f.fim()));
+            if(inicio.isAfter(agora) && cabe && ocupados.stream().noneMatch(o->inicio.isBefore(o[1])&&fim.isAfter(o[0])))
+                out.add(Map.of("disponivel",true,"inicio",inicio,"fim",fim));
+        }
+        return out;
+    }
     private void existeLoja(Long id) { if(!lojas.existsById(id)) throw ausente("Barbearia"); }
     private Barbearia bloquear(Long id) { return lojas.bloquear(id).orElseThrow(() -> ausente("Barbearia")); }
     private void mesmaLoja(Long a,Long b) { exigir(a.equals(b),"Os recursos devem pertencer à mesma barbearia. O vínculo de origem não pode ser alterado."); }
