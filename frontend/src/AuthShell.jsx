@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import App from "./App";
 import Portal from "./Portal";
 import CustomerPortal from "./CustomerPortal";
@@ -6,8 +6,10 @@ import AdminSettings from "./AdminSettings";
 import { api, errorMessage } from "./api";
 import { useTheme } from "./useTheme";
 import ThemeToggle from "./ThemeToggle";
+import { ShopIdentity, WelcomeLoading } from "./ShopIdentity";
+import "./experience.css";
 
-export function BrandRail() {
+export function BrandRail({ shop, children }) {
   return (
     <aside className="sidebar portal-rail">
       <a className="brand" href="#" aria-label="BarberFlow">
@@ -19,6 +21,8 @@ export function BrandRail() {
           <small>GESTÃO COM ESTILO</small>
         </span>
       </a>
+      <ShopIdentity shop={shop} />
+      {children}
       <p>O cuidado começa com uma boa organização.</p>
     </aside>
   );
@@ -32,9 +36,24 @@ export default function AuthShell() {
     [register, setRegister] = useState(false),
     [form, setForm] = useState({ nome: "", email: "", senha: "" }),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [entrance, setEntrance] = useState(null),
+    [workspaceReady, setWorkspaceReady] = useState(false);
+  const onWorkspaceReady = useCallback(() => setWorkspaceReady(true), []);
+  useEffect(() => {
+    if (!entrance || !workspaceReady) return;
+    const timer = setTimeout(
+      () => setEntrance(null),
+      Math.max(0, 650 - (Date.now() - entrance)),
+    );
+    return () => clearTimeout(timer);
+  }, [entrance, workspaceReady]);
   const { theme, toggleTheme } = useTheme();
-  function signed(u) {
+  function signed(u, welcome = false) {
+    if (welcome) {
+      setWorkspaceReady(false);
+      setEntrance(Date.now());
+    }
     setUser(u);
     setRole(
       u.papeis.some((p) => p.perfil === "ADMIN")
@@ -85,6 +104,7 @@ export default function AuthShell() {
             senha: form.senha,
           })
         ).data,
+        true,
       );
       setForm({ nome: "", email: "", senha: "" });
     } catch (e) {
@@ -98,6 +118,7 @@ export default function AuthShell() {
     try {
       await api.post("/auth/logout");
       setUser(null);
+      setEntrance(null);
       setSettings(false);
     } catch (e) {
       setError(errorMessage(e));
@@ -105,7 +126,7 @@ export default function AuthShell() {
       setBusy(false);
     }
   }
-  if (!ready) return <div className="loading">Carregando seu acesso…</div>;
+  if (!ready) return <WelcomeLoading />;
   if (!user)
     return (
       <div className="auth-page">
@@ -209,60 +230,83 @@ export default function AuthShell() {
   ];
   return (
     <>
-      <div className="account-bar">
-        <span>
-          <strong>{user.nome}</strong>
-          <small>{user.email}</small>
-        </span>
-        <label className="account-role">
-          Meu perfil
-          <select
-            aria-label="Meu perfil"
-            value={role}
-            onChange={(e) => {
-              setRole(e.target.value);
-              setSettings(false);
-            }}
-          >
-            {roles.map((r) => (
-              <option key={r} value={r}>
-                {
+      {entrance && <WelcomeLoading user={user} role={role} />}
+      <div
+        className={entrance ? "session-preparing" : "session-workspace"}
+        inert={entrance ? true : undefined}
+        aria-hidden={entrance ? true : undefined}
+      >
+        <div className="account-bar">
+          <span>
+            <strong>
+              {role === "BARBEIRO"
+                ? user.unidades?.find((u) => u.perfil === "BARBEIRO")
+                    ?.profissional_nome || user.nome
+                : role === "BARBEARIA"
+                  ? user.unidades?.find((u) => u.perfil === "BARBEARIA")
+                      ?.nome || user.nome
+                  : user.nomeExibicao || user.nome}
+            </strong>
+            <small>{user.email}</small>
+          </span>
+          <label className="account-role">
+            Meu perfil
+            <select
+              aria-label="Meu perfil"
+              value={role}
+              onChange={(e) => {
+                setRole(e.target.value);
+                setSettings(false);
+              }}
+            >
+              {roles.map((r) => (
+                <option key={r} value={r}>
                   {
-                    ADMIN: "Administrador geral",
-                    BARBEARIA: "Barbearia",
-                    BARBEIRO: "Barbeiro",
-                    CLIENTE: "Cliente",
-                  }[r]
-                }
-              </option>
-            ))}
-          </select>
-        </label>
-        {["ADMIN", "BARBEARIA"].includes(role) && (
-          <button className="secondary" onClick={() => setSettings(!settings)}>
-            {settings ? "Voltar à gestão" : "Acessos e horários"}
+                    {
+                      ADMIN: "Administrador geral",
+                      BARBEARIA: "Barbearia",
+                      BARBEIRO: "Barbeiro",
+                      CLIENTE: "Cliente",
+                    }[r]
+                  }
+                </option>
+              ))}
+            </select>
+          </label>
+          {["ADMIN", "BARBEARIA"].includes(role) && (
+            <button
+              className="secondary"
+              onClick={() => setSettings(!settings)}
+            >
+              {settings ? "Voltar à gestão" : "Acessos e horários"}
+            </button>
+          )}
+          <button className="secondary" onClick={logout} disabled={busy}>
+            Sair
           </button>
-        )}
-        <button className="secondary" onClick={logout} disabled={busy}>
-          Sair
-        </button>
-      </div>
-      {error && (
-        <div className="session-error alert error" role="alert">
-          {error}
         </div>
-      )}
-      {["ADMIN", "BARBEARIA"].includes(role) ? (
-        settings ? (
-          <AdminSettings globalAdmin={role === "ADMIN"} />
+        {error && (
+          <div className="session-error alert error" role="alert">
+            {error}
+          </div>
+        )}
+        {["ADMIN", "BARBEARIA"].includes(role) ? (
+          settings ? (
+            <AdminSettings globalAdmin={role === "ADMIN"} />
+          ) : (
+            <App globalAdmin={role === "ADMIN"} onReady={onWorkspaceReady} />
+          )
+        ) : role === "CLIENTE" ? (
+          <CustomerPortal user={user} onReady={onWorkspaceReady} />
         ) : (
-          <App globalAdmin={role === "ADMIN"} />
-        )
-      ) : role === "CLIENTE" ? (
-        <CustomerPortal />
-      ) : (
-        <Portal key={role} role={role} />
-      )}
+          <Portal
+            key={role}
+            role={role}
+            user={user}
+            onReady={onWorkspaceReady}
+          />
+        )}
+      </div>
     </>
   );
 }

@@ -17,6 +17,16 @@ public class PortalController {
  public PortalController(Acesso a,JdbcTemplate d,GestaoService s,BarbeariaRepository l){acesso=a;db=d;service=s;lojas=l;}
  @GetMapping("/barbearias") public Object lojas(){var c=acesso.conta();if(acesso.global())return db.queryForList("select id,nome,ativa from barbearia order by nome");if(c.clienteId()!=null)return db.queryForList("select id,nome,ativa from barbearia where ativa=true order by nome");return db.queryForList("select distinct b.id,b.nome,b.ativa from barbearia b join permissao p on p.barbearia_id=b.id where p.usuario_id=? order by b.nome",c.id());}
  private Long profissional(Long loja,String perfil){if(perfil.equals("BARBEIRO")){var id=acesso.profissional(loja);if(id==null)acesso.negar();return id;}if(!perfil.equals("CLIENTE")||acesso.conta().clienteId()==null)acesso.negar();return null;}
+ @GetMapping("/meus-agendamentos") public Object meusAgendamentos(){
+   Long cliente=acesso.conta().clienteId();if(cliente==null)acesso.negar();
+   // Identidade vem da sessão; parâmetros enviados pelo navegador não selecionam outro cliente.
+   return db.queryForList("""
+     select a.id,a.barbearia_id "barbeariaId",b.nome "barbeariaNome",b.ativa "barbeariaAtiva",
+       br.nome "barbeiroNome",s.nome "servicoNome",to_char(a.inicio,'YYYY-MM-DD"T"HH24:MI:SS') inicio,to_char(a.fim,'YYYY-MM-DD"T"HH24:MI:SS') fim,a.status,a.valor_acordado "valorAcordado",a.valor_estimado "valorEstimado"
+     from agendamento a join barbearia b on b.id=a.barbearia_id join barbeiro br on br.id=a.barbeiro_id join servico s on s.id=a.servico_id
+     where a.cliente_id=? order by a.inicio desc,a.id desc
+     """,cliente);
+ }
  @GetMapping("/painel") public Object painel(@RequestParam Long barbeariaId,@RequestParam String perfil){
    Long barbeiro=profissional(barbeariaId,perfil);Long cliente=acesso.conta().clienteId();
    var agenda=service.agendamentos(barbeariaId,null,null,null).stream().filter(a->barbeiro!=null?a.getBarbeiroId().equals(barbeiro):a.getClienteId().equals(cliente)).toList();

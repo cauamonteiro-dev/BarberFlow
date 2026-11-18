@@ -51,11 +51,15 @@ test("cliente cadastra acesso, reserva, remarca e cancela no próprio portal", a
     await page.getByLabel("Senha", { exact: true }).fill("Portal!2026teste");
     await page.getByRole("button", { name: "Criar conta e entrar" }).click();
     await expect(
-      page.getByRole("heading", { name: "Encontre sua barbearia" }),
+      page.getByRole("heading", { name: "Meus agendamentos", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Acessos e horários" }),
     ).toHaveCount(0);
+    await page
+      .getByRole("navigation", { name: "Navegação do cliente", exact: true })
+      .getByRole("button", { name: "Barbearias", exact: true })
+      .click();
     await page
       .getByRole("searchbox", { name: "Pesquisar barbearias" })
       .fill(shop.nome);
@@ -125,7 +129,7 @@ test("barbeiro vê a própria agenda e o administrador gerencia horários", asyn
   await loginRequest(context.request, "barbeiro@barberflow.local");
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Minha agenda", exact: true }),
+    page.getByRole("heading", { name: "Olá, Marcos!", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Meu expediente e bloqueios" }),
@@ -212,6 +216,10 @@ test("troca de unidade ignora a resposta atrasada da unidade anterior", async ({
     if (old) finished();
   });
   await page.goto("/");
+  await page
+    .getByRole("navigation", { name: "Navegação do cliente", exact: true })
+    .getByRole("button", { name: "Barbearias", exact: true })
+    .click();
   await page
     .getByRole("button", {
       name: "Ver serviços e horários de Primeira",

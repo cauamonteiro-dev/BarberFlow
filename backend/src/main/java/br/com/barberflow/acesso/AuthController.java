@@ -31,7 +31,11 @@ public class AuthController {
    var context=SecurityContextHolder.createEmptyContext();context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(user,null,user.getAuthorities()));
    SecurityContextHolder.setContext(context);repo.saveContext(context,request,response);return me();
  }
- @GetMapping("/me") public Map<String,Object> me(){var c=acesso.conta();var out=new LinkedHashMap<String,Object>();out.put("id",c.id());out.put("nome",c.nome());out.put("email",c.email());out.put("clienteId",c.clienteId());out.put("papeis",acesso.papeis());return out;}
+ @GetMapping("/me") public Map<String,Object> me(){
+   var c=acesso.conta();var out=new LinkedHashMap<String,Object>();out.put("id",c.id());out.put("nome",c.nome());out.put("email",c.email());out.put("clienteId",c.clienteId());out.put("papeis",acesso.papeis());
+   out.put("unidades",db.queryForList("select b.id,b.nome,b.ativa,case when p.perfil='ADMIN' then 'BARBEARIA' else p.perfil end perfil,p.barbeiro_id,br.nome profissional_nome from permissao p join barbearia b on b.id=p.barbearia_id left join barbeiro br on br.id=p.barbeiro_id where p.usuario_id=? order by b.nome,p.perfil",c.id()));
+   out.put("nomeExibicao",c.clienteId()==null?c.nome():db.queryForObject("select nome from cliente where id=?",String.class,c.clienteId()));return out;
+ }
  @PostMapping("/cadastro") @ResponseStatus(HttpStatus.CREATED) @Transactional public void cadastrar(@Valid @RequestBody Cadastro r){
    if(r.senha().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>72)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"A senha deve ter no máximo 72 bytes em UTF-8.");
    String email=r.email().strip().toLowerCase(Locale.ROOT);

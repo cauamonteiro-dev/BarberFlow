@@ -237,6 +237,296 @@
   flex-wrap: wrap;
   margin-bottom: 24px;
 }
+
+/* A fotografia padrão acompanha a unidade da descoberta ao agendamento. */
+.shop-card-cover {
+  position: relative;
+  height: 190px;
+  padding: 0;
+  overflow: hidden;
+}
+.shop-card-cover > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.shop-card-cover > .shop-photo-label,
+.shop-photo-label {
+  font:
+    500 10px/1.4 "DM Sans Variable",
+    sans-serif;
+  color: #fff;
+  background: #101e2acc;
+  padding: 5px 9px;
+  border-radius: 5px;
+}
+.shop-card-cover > .shop-photo-label {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+}
+.shop-card-body > p {
+  margin-bottom: 12px;
+}
+.shop-card-body > .shop-card-address {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  margin-bottom: 22px;
+}
+.shop-card-body > .shop-profile-link {
+  margin-top: auto;
+  margin-bottom: 10px;
+}
+.shop-card-body > .primary {
+  margin-top: 0;
+}
+.shop-profile {
+  padding-bottom: 40px;
+}
+.shop-profile-hero {
+  position: relative;
+  min-height: 340px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #152635;
+  display: flex;
+  align-items: flex-end;
+}
+.shop-profile-hero > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.shop-profile-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    0deg,
+    #09131df2 0%,
+    #09131d73 60%,
+    #09131d0a 100%
+  );
+}
+.shop-profile-title {
+  position: relative;
+  z-index: 1;
+  padding: 36px;
+  color: #fff;
+}
+.shop-profile-title .eyebrow {
+  color: #ebcc97;
+  margin-top: 22px;
+}
+.shop-profile-title h1 {
+  font:
+    750 clamp(28px, 4vw, 46px)/1.15 "Manrope Variable",
+    sans-serif;
+  margin: 10px 0 12px;
+  overflow-wrap: anywhere;
+  letter-spacing: -1px;
+}
+.shop-profile-title > p:last-child {
+  color: #e2e8ed;
+  margin-bottom: 0;
+  font-size: 16px;
+}
+.shop-profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+  gap: 36px;
+  margin-top: 32px;
+  align-items: start;
+}
+.shop-profile-section {
+  margin-bottom: 32px;
+}
+.shop-profile h2,
+.booking-shop-banner h2 {
+  font:
+    750 22px/1.3 "Manrope Variable",
+    sans-serif;
+  margin: 0 0 15px;
+}
+.shop-profile-section > p:not(.eyebrow),
+.shop-visit-card > p {
+  color: var(--muted);
+  line-height: 1.9;
+  font-size: 14px;
+}
+.shop-gallery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.shop-gallery figure {
+  min-width: 0;
+  margin: 0;
+}
+.shop-gallery img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+}
+.shop-gallery figcaption {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 9px;
+}
+.shop-visit-card {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 28px;
+}
+.shop-visit-card h2 {
+  margin-top: 20px;
+}
+.shop-visit-card > .shop-location-label {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.shop-visit-card address {
+  font-style: normal;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.shop-visit-card address span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.shop-visit-card hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 22px 0;
+}
+.shop-visit-card button {
+  width: 100%;
+  min-height: 48px;
+  justify-content: space-between;
+  gap: 12px;
+}
+.shop-visit-card small {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.shop-demo-note {
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.booking-shop-banner {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  background: var(--surface);
+  border-radius: 12px;
+  margin-bottom: 28px;
+}
+.booking-shop-banner > img {
+  width: 150px;
+  height: 115px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.booking-shop-banner > div {
+  flex: 1;
+  min-width: 0;
+}
+.booking-shop-banner .eyebrow {
+  margin: 0 0 10px;
+}
+.booking-shop-banner h2 {
+  font-size: clamp(22px, 2.5vw, 32px);
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+.booking-shop-banner p:not(.eyebrow) {
+  color: var(--muted);
+  margin: 0 0 7px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.booking-shop-banner span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.booking-shop-banner button {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+@media (max-width: 1000px) {
+  .shop-profile-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .shop-visit-card {
+    order: -1;
+    margin-bottom: 24px;
+  }
+  .booking-shop-banner {
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .booking-shop-banner > button {
+    margin-left: auto;
+  }
+}
+@media (max-width: 540px) {
+  .shop-card-cover {
+    height: 185px;
+  }
+  .shop-profile-hero {
+    min-height: 310px;
+  }
+  .shop-profile-title {
+    padding: 24px;
+  }
+  .shop-profile-title > p:last-child {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .shop-profile-layout {
+    margin-top: 26px;
+  }
+  .shop-visit-card {
+    padding: 22px;
+  }
+  .shop-gallery {
+    grid-template-columns: 1fr;
+  }
+  .booking-shop-banner {
+    padding: 16px;
+    gap: 16px;
+  }
+  .booking-shop-banner > img {
+    width: 100%;
+    height: 150px;
+  }
+  .booking-shop-banner > div {
+    flex-basis: 100%;
+  }
+  .booking-shop-banner > button {
+    width: 100%;
+  }
+}
 .client-view-nav button {
   min-height: 44px;
   font-size: 13px;
