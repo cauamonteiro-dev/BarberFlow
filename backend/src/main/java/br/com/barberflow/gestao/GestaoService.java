@@ -139,6 +139,7 @@ public class GestaoService {
             || !anterior.getServicoId().equals(r.servicoId());
         boolean reativou=anterior!=null && anterior.getStatus()==StatusAgendamento.CANCELADO && r.status()!=StatusAgendamento.CANCELADO;
         if(mudou || reativou) {
+            exigir(r.inicio().isAfter(HorarioLocal.agora()),"Escolha um horário futuro.");
             exigir(loja.isAtiva(),"A barbearia está inativa.");
             exigir(vinculo.getStatus()==StatusCadastro.ATIVO,"O vínculo do cliente está inativo.");
             exigir(profissional.getStatus()==StatusCadastro.ATIVO,"O barbeiro está inativo.");
@@ -186,7 +187,7 @@ public class GestaoService {
         mesmaLoja(b.getBarbeariaId(),loja); mesmaLoja(s.getBarbeariaId(),loja);
         if(ignorar!=null) mesmaLoja(agendamento(ignorar).getBarbeariaId(),loja);
         var fim=inicio.plusMinutes(s.getDuracaoMin());
-        boolean livre=lojas.findById(loja).orElseThrow().isAtiva() && b.getStatus()==StatusCadastro.ATIVO
+        boolean livre=inicio.isAfter(HorarioLocal.agora()) && lojas.findById(loja).orElseThrow().isAtiva() && b.getStatus()==StatusCadastro.ATIVO
             && s.getStatus()==StatusCadastro.ATIVO && horarios.disponivel(barbeiroId,inicio,fim) && agendamentos.conflitos(barbeiroId,inicio,fim,ignorar)==0;
         return Map.of("disponivel",livre,"inicio",inicio,"fim",fim);
     }
@@ -207,7 +208,7 @@ public class GestaoService {
             """,(rs,n)->new LocalDateTime[]{rs.getObject(1,LocalDateTime.class),rs.getObject(2,LocalDateTime.class)},
             barbeiroId,dia.plusDays(1).atStartOfDay(),dia.atStartOfDay(),
             barbeiroId,dia.plusDays(1).atStartOfDay(),dia.atStartOfDay(),ignorar,ignorar);
-        var agora=LocalDateTime.now();
+        var agora=HorarioLocal.agora();
         var out=new ArrayList<Map<String,Object>>();
         for(int minute=0;minute<1440;minute+=15){
             var inicio=dia.atStartOfDay().plusMinutes(minute);var fim=inicio.plusMinutes(s.getDuracaoMin());

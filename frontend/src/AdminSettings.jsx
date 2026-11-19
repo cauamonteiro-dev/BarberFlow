@@ -25,15 +25,32 @@ export default function AdminSettings({ globalAdmin = false }) {
   const unitsRequest = useRef(0),
     hoursRequest = useRef(0);
   const [loadedShop, setLoadedShop] = useState("");
+  const [loadingShops, setLoadingShops] = useState(true);
+  const [unitRetry, setUnitRetry] = useState(0);
+  const [shopsRetry, setShopsRetry] = useState(0);
   useEffect(() => {
+    const controller = new AbortController();
+    setLoadingShops(true);
+    setError("");
     api
-      .get("/barbearias")
+      .get("/barbearias", { signal: controller.signal })
       .then((r) => {
+        const current = localStorage.getItem("barberflow.shop");
         setShops(r.data);
-        setShop(String(r.data[0]?.id || ""));
+        setShop(
+          r.data.some((s) => String(s.id) === current)
+            ? current
+            : String(r.data[0]?.id || ""),
+        );
       })
-      .catch((e) => setError(errorMessage(e)));
-  }, []);
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(errorMessage(e));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingShops(false);
+      });
+    return () => controller.abort();
+  }, [shopsRetry]);
   const load = useCallback(async () => {
     const generation = ++unitsRequest.current;
     if (!shop) return;
@@ -49,13 +66,21 @@ export default function AdminSettings({ globalAdmin = false }) {
     setAccounts(a.data);
   }, [shop]);
   useEffect(() => {
+    setLoadedShop("");
     setBarber("");
+    setAccount((current) => ({ ...current, barbeiroId: "", clienteId: "" }));
     setHours({ expediente: [], bloqueios: [] });
-    load().catch((e) => setError(errorMessage(e)));
+    if (!shop) return;
+    setError("");
+    const pending = load();
+    const generation = unitsRequest.current;
+    pending.catch((e) => {
+      if (generation === unitsRequest.current) setError(errorMessage(e));
+    });
     return () => {
       ++unitsRequest.current;
     };
-  }, [load]);
+  }, [load, shop, unitRetry]);
   const loadHours = useCallback(async () => {
     const generation = ++hoursRequest.current;
     if (!barber) return;
@@ -110,22 +135,36 @@ export default function AdminSettings({ globalAdmin = false }) {
               <h1>Acessos e horários</h1>
               <p>Organize sua equipe, expedientes, pausas e ausências.</p>
             </div>
-            <select
-              aria-label="Barbearia de administração"
-              disabled={busy}
-              value={shop}
-              onChange={(e) => setShop(e.target.value)}
-            >
-              {shops.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nome}
-                </option>
-              ))}
-            </select>
+            {shops.length > 0 && (
+              <select
+                aria-label="Barbearia de administração"
+                disabled={busy}
+                value={shop}
+                onChange={(e) => setShop(e.target.value)}
+              >
+                {shops.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nome}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           {error && (
             <div className="alert error" role="alert">
               {error}
+              {loadedShop !== shop || !shops.length ? (
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    shop
+                      ? setUnitRetry((n) => n + 1)
+                      : setShopsRetry((n) => n + 1)
+                  }
+                >
+                  Tentar novamente
+                </button>
+              ) : null}
             </div>
           )}
           {notice && (
@@ -133,339 +172,379 @@ export default function AdminSettings({ globalAdmin = false }) {
               {notice}
             </div>
           )}
-          <section className="panel">
-            <div className="panel-heading">
-              <h2>Criar acesso ou adicionar perfil</h2>
+          {(loadingShops || (shop && loadedShop !== shop && !error)) && (
+            <div className="loading" role="status">
+              Carregando acessos e horários…
             </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                mutate(async () => {
-                  await api.post(`/administracao/${shop}/acessos`, {
-                    ...account,
-                    barbeiroId: account.barbeiroId
-                      ? Number(account.barbeiroId)
-                      : null,
-                    clienteId: account.clienteId
-                      ? Number(account.clienteId)
-                      : null,
-                  });
-                  setAccount({
-                    nome: "",
-                    email: "",
-                    senha: "",
-                    perfil: "BARBEIRO",
-                    barbeiroId: "",
-                    clienteId: "",
-                  });
-                });
-              }}
-            >
-              <div className="form-fields">
-                {field("nome", "Nome")}
-                {field("email", "E-mail", "email")}
-                {field("senha", "Senha inicial (conta nova)", "password")}
-                <label>
-                  Perfil
-                  <select
-                    value={account.perfil}
-                    onChange={(e) =>
-                      setAccount({ ...account, perfil: e.target.value })
-                    }
-                  >
-                    {globalAdmin && (
-                      <option value="BARBEARIA">Barbearia</option>
-                    )}
-                    <option value="BARBEIRO">Barbeiro</option>
-                    <option value="CLIENTE">Cliente</option>
-                  </select>
-                </label>
-                {account.perfil === "BARBEIRO" && (
-                  <label>
-                    Profissional
-                    <select
-                      required
-                      value={account.barbeiroId}
-                      onChange={(e) =>
-                        setAccount({ ...account, barbeiroId: e.target.value })
-                      }
-                    >
-                      <option value="">Selecione…</option>
-                      {barbers.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                {account.perfil === "CLIENTE" && (
-                  <label>
-                    Cadastro do cliente
-                    <select
-                      required
-                      value={account.clienteId}
-                      onChange={(e) =>
-                        setAccount({ ...account, clienteId: e.target.value })
-                      }
-                    >
-                      <option value="">Selecione…</option>
-                      {clients.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                <p className="form-note full">
-                  Contas novas exigem senha com 10 a 72 caracteres. Um acesso
-                  existente mantém a senha atual. Clientes recebem acesso ao
-                  próprio cadastro, sem permissão administrativa.
-                </p>
-              </div>
-              <div className="modal-footer">
-                <button
-                  className="primary"
-                  disabled={busy || loadedShop !== shop}
-                >
-                  Salvar acesso
-                </button>
-              </div>
-            </form>
-            <div className="table-wrap">
-              <ResponsiveTable>
-                <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>E-mail</th>
-                    <th>Perfil</th>
-                    <th>Ação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {accounts.map((a) => (
-                    <tr key={a.email + a.perfil}>
-                      <td>{a.nome}</td>
-                      <td>{a.email}</td>
-                      <td>{a.perfil}</td>
-                      <td>
-                        {a.perfil === "CLIENTE" ||
-                        (!globalAdmin &&
-                          ["ADMIN", "BARBEARIA"].includes(a.perfil)) ? (
-                          <span>Acesso vinculado à unidade</span>
-                        ) : (
-                          <button
-                            className="secondary"
-                            disabled={busy}
-                            onClick={() => {
-                              if (confirm("Remover este perfil da unidade?"))
-                                mutate(() =>
-                                  api.delete(
-                                    `/administracao/${shop}/acessos/${a.id}`,
-                                  ),
-                                );
-                            }}
-                          >
-                            Remover perfil
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </ResponsiveTable>
-            </div>
-          </section>
-          <section className="panel portal-section">
-            <div className="panel-heading">
-              <h2>Expediente do profissional</h2>
-              <select
-                aria-label="Profissional dos horários"
-                disabled={busy || loadedShop !== shop}
-                value={barber}
-                onChange={(e) => setBarber(e.target.value)}
-              >
-                <option value="">Selecione…</option>
-                {barbers.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {barber && hours.barbeiroId === barber && (
-              <>
-                <div className="schedule-editor">
-                  {hours.expediente.map((h, i) => (
-                    <div className="schedule-row" key={i}>
-                      <label>
-                        Dia
-                        <select
-                          value={h.diaSemana}
-                          onChange={(e) =>
-                            setHours({
-                              ...hours,
-                              expediente: hours.expediente.map((a, k) =>
-                                k === i
-                                  ? { ...a, diaSemana: Number(e.target.value) }
-                                  : a,
-                              ),
-                            })
-                          }
-                        >
-                          {[
-                            "Segunda",
-                            "Terça",
-                            "Quarta",
-                            "Quinta",
-                            "Sexta",
-                            "Sábado",
-                            "Domingo",
-                          ].map((d, k) => (
-                            <option key={d} value={k + 1}>
-                              {d}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {["inicio", "fim"].map((key, k) => (
-                        <label key={key}>
-                          {k === 0 ? "Início" : "Término"}
-                          <input
-                            type="time"
-                            required
-                            value={h[key]}
-                            onChange={(e) =>
-                              setHours({
-                                ...hours,
-                                expediente: hours.expediente.map((a, n) =>
-                                  n === i ? { ...a, [key]: e.target.value } : a,
-                                ),
-                              })
-                            }
-                          />
-                        </label>
-                      ))}
-                      <button
-                        className="secondary"
-                        onClick={() =>
-                          setHours({
-                            ...hours,
-                            expediente: hours.expediente.filter(
-                              (_, k) => k !== i,
-                            ),
-                          })
-                        }
-                      >
-                        Remover faixa
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="modal-footer">
-                  <button
-                    className="secondary"
-                    onClick={() =>
-                      setHours({
-                        ...hours,
-                        expediente: [
-                          ...hours.expediente,
-                          { diaSemana: 1, inicio: "09:00", fim: "18:00" },
-                        ],
-                      })
-                    }
-                  >
-                    Adicionar faixa
-                  </button>
-                  <button
-                    className="primary"
-                    disabled={busy}
-                    onClick={() =>
-                      mutate(() =>
-                        api.put(`/administracao/barbeiros/${barber}/horarios`, {
-                          faixas: hours.expediente.map(
-                            ({ diaSemana, inicio, fim }) => ({
-                              diaSemana,
-                              inicio,
-                              fim,
-                            }),
-                          ),
-                        }),
-                      )
-                    }
-                  >
-                    Salvar expediente
-                  </button>
-                </div>
+          )}
+          {!loadingShops && !shop && !error && (
+            <div className="empty compact">Nenhuma barbearia disponível.</div>
+          )}
+          {shop && loadedShop === shop && (
+            <>
+              <section className="panel">
                 <div className="panel-heading">
-                  <h2>Bloquear ausência ou intervalo</h2>
+                  <h2>Criar acesso ou adicionar perfil</h2>
                 </div>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     mutate(async () => {
-                      await api.post(
-                        `/administracao/barbeiros/${barber}/bloqueios`,
-                        block,
-                      );
-                      setBlock({ inicio: "", fim: "", motivo: "" });
+                      await api.post(`/administracao/${shop}/acessos`, {
+                        ...account,
+                        barbeiroId: account.barbeiroId
+                          ? Number(account.barbeiroId)
+                          : null,
+                        clienteId: account.clienteId
+                          ? Number(account.clienteId)
+                          : null,
+                      });
+                      setAccount({
+                        nome: "",
+                        email: "",
+                        senha: "",
+                        perfil: "BARBEIRO",
+                        barbeiroId: "",
+                        clienteId: "",
+                      });
                     });
                   }}
                 >
                   <div className="form-fields">
-                    {["inicio", "fim", "motivo"].map((k, i) => (
-                      <label key={k}>
-                        {
-                          [
-                            "Início do bloqueio",
-                            "Término do bloqueio",
-                            "Motivo",
-                          ][i]
+                    {field("nome", "Nome")}
+                    {field("email", "E-mail", "email")}
+                    {field("senha", "Senha inicial (conta nova)", "password")}
+                    <label>
+                      Perfil
+                      <select
+                        value={account.perfil}
+                        onChange={(e) =>
+                          setAccount({ ...account, perfil: e.target.value })
                         }
-                        <input
+                      >
+                        {globalAdmin && (
+                          <option value="BARBEARIA">Barbearia</option>
+                        )}
+                        <option value="BARBEIRO">Barbeiro</option>
+                        <option value="CLIENTE">Cliente</option>
+                      </select>
+                    </label>
+                    {account.perfil === "BARBEIRO" && (
+                      <label>
+                        Profissional
+                        <select
                           required
-                          maxLength={k === "motivo" ? 200 : undefined}
-                          type={k === "motivo" ? "text" : "datetime-local"}
-                          value={block[k]}
+                          value={account.barbeiroId}
                           onChange={(e) =>
-                            setBlock({ ...block, [k]: e.target.value })
+                            setAccount({
+                              ...account,
+                              barbeiroId: e.target.value,
+                            })
                           }
-                        />
+                        >
+                          <option value="">Selecione…</option>
+                          {barbers.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.nome}
+                            </option>
+                          ))}
+                        </select>
                       </label>
-                    ))}
+                    )}
+                    {account.perfil === "CLIENTE" && (
+                      <label>
+                        Cadastro do cliente
+                        <select
+                          required
+                          value={account.clienteId}
+                          onChange={(e) =>
+                            setAccount({
+                              ...account,
+                              clienteId: e.target.value,
+                            })
+                          }
+                        >
+                          <option value="">Selecione…</option>
+                          {clients.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                    <p className="form-note full">
+                      Contas novas exigem senha com 10 a 72 caracteres. Um
+                      acesso existente mantém a senha atual. Clientes recebem
+                      acesso ao próprio cadastro, sem permissão administrativa.
+                    </p>
                   </div>
                   <div className="modal-footer">
-                    <button className="primary" disabled={busy}>
-                      Criar bloqueio
+                    <button
+                      className="primary"
+                      disabled={busy || loadedShop !== shop}
+                    >
+                      Salvar acesso
                     </button>
                   </div>
                 </form>
-                <div className="schedule-summary">
-                  {hours.bloqueios.map((b) => (
-                    <div className="row-actions" key={b.id}>
-                      <span>
-                        {b.inicio} — {b.fim} • {b.motivo}
-                      </span>
+                <div className="table-wrap">
+                  <ResponsiveTable>
+                    <thead>
+                      <tr>
+                        <th>Nome</th>
+                        <th>E-mail</th>
+                        <th>Perfil</th>
+                        <th>Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accounts.length === 0 && (
+                        <tr>
+                          <td colSpan={4}>
+                            Nenhum acesso cadastrado nesta unidade.
+                          </td>
+                        </tr>
+                      )}
+                      {accounts.map((a) => (
+                        <tr key={a.email + a.perfil}>
+                          <td>{a.nome}</td>
+                          <td>{a.email}</td>
+                          <td>{a.perfil}</td>
+                          <td>
+                            {a.perfil === "CLIENTE" ||
+                            (!globalAdmin &&
+                              ["ADMIN", "BARBEARIA"].includes(a.perfil)) ? (
+                              <span>Acesso vinculado à unidade</span>
+                            ) : (
+                              <button
+                                className="secondary"
+                                disabled={busy}
+                                onClick={() => {
+                                  if (
+                                    confirm("Remover este perfil da unidade?")
+                                  )
+                                    mutate(() =>
+                                      api.delete(
+                                        `/administracao/${shop}/acessos/${a.id}`,
+                                      ),
+                                    );
+                                }}
+                              >
+                                Remover perfil
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </ResponsiveTable>
+                </div>
+              </section>
+              <section className="panel portal-section">
+                <div className="panel-heading">
+                  <h2>Expediente do profissional</h2>
+                  <select
+                    aria-label="Profissional dos horários"
+                    disabled={busy || loadedShop !== shop}
+                    value={barber}
+                    onChange={(e) => setBarber(e.target.value)}
+                  >
+                    <option value="">Selecione…</option>
+                    {barbers.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {barber && hours.barbeiroId !== barber && !error && (
+                  <div className="loading" role="status">
+                    Carregando expediente…
+                  </div>
+                )}
+                {barber && hours.barbeiroId === barber && (
+                  <>
+                    <div className="schedule-editor">
+                      {hours.expediente.map((h, i) => (
+                        <div className="schedule-row" key={i}>
+                          <label>
+                            Dia
+                            <select
+                              value={h.diaSemana}
+                              onChange={(e) =>
+                                setHours({
+                                  ...hours,
+                                  expediente: hours.expediente.map((a, k) =>
+                                    k === i
+                                      ? {
+                                          ...a,
+                                          diaSemana: Number(e.target.value),
+                                        }
+                                      : a,
+                                  ),
+                                })
+                              }
+                            >
+                              {[
+                                "Segunda",
+                                "Terça",
+                                "Quarta",
+                                "Quinta",
+                                "Sexta",
+                                "Sábado",
+                                "Domingo",
+                              ].map((d, k) => (
+                                <option key={d} value={k + 1}>
+                                  {d}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          {["inicio", "fim"].map((key, k) => (
+                            <label key={key}>
+                              {k === 0 ? "Início" : "Término"}
+                              <input
+                                type="time"
+                                required
+                                value={h[key]}
+                                onChange={(e) =>
+                                  setHours({
+                                    ...hours,
+                                    expediente: hours.expediente.map((a, n) =>
+                                      n === i
+                                        ? { ...a, [key]: e.target.value }
+                                        : a,
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+                          ))}
+                          <button
+                            className="secondary"
+                            onClick={() =>
+                              setHours({
+                                ...hours,
+                                expediente: hours.expediente.filter(
+                                  (_, k) => k !== i,
+                                ),
+                              })
+                            }
+                          >
+                            Remover faixa
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="modal-footer">
                       <button
                         className="secondary"
+                        onClick={() =>
+                          setHours({
+                            ...hours,
+                            expediente: [
+                              ...hours.expediente,
+                              { diaSemana: 1, inicio: "09:00", fim: "18:00" },
+                            ],
+                          })
+                        }
+                      >
+                        Adicionar faixa
+                      </button>
+                      <button
+                        className="primary"
                         disabled={busy}
                         onClick={() =>
                           mutate(() =>
-                            api.delete(
-                              `/administracao/barbeiros/${barber}/bloqueios/${b.id}`,
+                            api.put(
+                              `/administracao/barbeiros/${barber}/horarios`,
+                              {
+                                faixas: hours.expediente.map(
+                                  ({ diaSemana, inicio, fim }) => ({
+                                    diaSemana,
+                                    inicio,
+                                    fim,
+                                  }),
+                                ),
+                              },
                             ),
                           )
                         }
                       >
-                        Remover bloqueio
+                        Salvar expediente
                       </button>
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
+                    <div className="panel-heading">
+                      <h2>Bloquear ausência ou intervalo</h2>
+                    </div>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        mutate(async () => {
+                          await api.post(
+                            `/administracao/barbeiros/${barber}/bloqueios`,
+                            block,
+                          );
+                          setBlock({ inicio: "", fim: "", motivo: "" });
+                        });
+                      }}
+                    >
+                      <div className="form-fields">
+                        {["inicio", "fim", "motivo"].map((k, i) => (
+                          <label key={k}>
+                            {
+                              [
+                                "Início do bloqueio",
+                                "Término do bloqueio",
+                                "Motivo",
+                              ][i]
+                            }
+                            <input
+                              required
+                              maxLength={k === "motivo" ? 200 : undefined}
+                              type={k === "motivo" ? "text" : "datetime-local"}
+                              value={block[k]}
+                              onChange={(e) =>
+                                setBlock({ ...block, [k]: e.target.value })
+                              }
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <div className="modal-footer">
+                        <button className="primary" disabled={busy}>
+                          Criar bloqueio
+                        </button>
+                      </div>
+                    </form>
+                    <div className="schedule-summary">
+                      {hours.bloqueios.map((b) => (
+                        <div className="row-actions" key={b.id}>
+                          <span>
+                            {b.inicio} — {b.fim} • {b.motivo}
+                          </span>
+                          <button
+                            className="secondary"
+                            disabled={busy}
+                            onClick={() =>
+                              mutate(() =>
+                                api.delete(
+                                  `/administracao/barbeiros/${barber}/bloqueios/${b.id}`,
+                                ),
+                              )
+                            }
+                          >
+                            Remover bloqueio
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </section>
+            </>
+          )}
         </div>
       </main>
     </div>

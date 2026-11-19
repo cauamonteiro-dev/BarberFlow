@@ -191,7 +191,6 @@
 }
 @media (max-width: 850px) {
   .account-bar {
-    margin-left: 72px;
     padding: 12px 20px;
   }
   .portal-rail p {
@@ -205,9 +204,6 @@
   }
   .auth-brand > img {
     width: 160px;
-  }
-  .session-error {
-    margin-left: 85px;
   }
 }
 @media (max-width: 620px) {

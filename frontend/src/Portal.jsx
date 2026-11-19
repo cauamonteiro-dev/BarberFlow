@@ -12,6 +12,13 @@ const money = (n) =>
     n ?? 0,
   );
 const date = (s) => (s ? new Date(s).toLocaleString("pt-BR") : "—");
+const shortDate = (value) =>
+  new Date(value + "T12:00:00").toLocaleDateString("pt-BR");
+const subscriptionStatus = {
+  ATIVA: "Ativa",
+  ENCERRADA: "Encerrada",
+  CANCELADA: "Cancelada",
+};
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -180,11 +187,25 @@ export default function Portal({
     setError("");
     setNotice("");
     try {
-      await fn();
+      const { data: saved } = await fn();
       setForm(null);
       if (client) setClientView("appointments");
       setNotice("Alterações salvas.");
-      await load();
+      if (client) {
+        await load();
+      } else {
+        ++requestId.current;
+        setData((current) => {
+          if (current?.barbeariaId !== String(saved.barbeariaId))
+            return current;
+          return {
+            ...current,
+            agendamentos: current.agendamentos.map((appointment) =>
+              appointment.id === saved.id ? saved : appointment,
+            ),
+          };
+        });
+      }
     } catch (e) {
       if (e.response?.data?.detail?.includes("preço")) await load();
       setError(errorMessage(e));
@@ -726,11 +747,12 @@ export default function Portal({
                       <tbody>
                         {data.assinaturas.map((a) => (
                           <tr key={a.id}>
-                            <td>Plano #{a.planoId}</td>
+                            <td>{a.planoNome}</td>
                             <td>
-                              {a.dataInicio} — {a.dataFim || "Sem término"}
+                              {shortDate(a.dataInicio)} —{" "}
+                              {a.dataFim ? shortDate(a.dataFim) : "Sem término"}
                             </td>
-                            <td>{a.status}</td>
+                            <td>{subscriptionStatus[a.status]}</td>
                           </tr>
                         ))}
                       </tbody>

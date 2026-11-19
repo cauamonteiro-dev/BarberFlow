@@ -600,19 +600,20 @@ table {
   width: 100%;
   font-size: 11px;
   text-align: left;
-  white-space: nowrap;
 }
 th {
   background: var(--surface-alt);
   font-size: 9px;
   font-weight: 600;
   color: var(--muted);
-  padding: 13px 22px;
+  padding: 13px clamp(8px, 1.4vw, 22px);
+  overflow-wrap: anywhere;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 td {
-  padding: 17px 22px;
+  padding: 17px clamp(8px, 1.4vw, 22px);
+  overflow-wrap: anywhere;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
 }
@@ -951,35 +952,6 @@ dialog::backdrop {
   }
 }
 @media (max-width: 850px) {
-  .sidebar {
-    width: 72px;
-    padding: 24px 10px;
-  }
-  .brand {
-    margin: 0 0 34px;
-    justify-content: center;
-  }
-  .brand > span:not(.brand-mark),
-  .workspace-label,
-  .sidebar-foot,
-  .nav small {
-    display: none;
-  }
-  .sidebar .nav {
-    font-size: 0;
-    padding: 13px;
-    justify-content: center;
-  }
-  .sidebar .nav > span {
-    font-size: 21px;
-    width: 24px;
-  }
-  .sidebar nav {
-    gap: 7px;
-  }
-  main {
-    margin-left: 72px;
-  }
   .topbar > span {
     display: none;
   }

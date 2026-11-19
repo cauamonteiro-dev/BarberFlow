@@ -74,6 +74,8 @@ public class RelatorioController {
     }
     @GetMapping("/dashboard") public Object dashboard(@RequestParam Long barbeariaId,@RequestParam(required=false) LocalDate de,@RequestParam(required=false) LocalDate ate,@RequestParam(required=false) Long barbeiroId,@RequestParam(required=false) Long servicoId){
         gestao.vinculos(barbeariaId);
+        if ((de == null) != (ate == null))
+            throw new RegraNegocioException("Informe a data inicial e a data final.");
         var inicio=de==null?LocalDate.now().withDayOfYear(1):de;
         var fim=ate==null?LocalDate.now().withMonth(12).withDayOfMonth(31):ate;
         long dias=java.time.temporal.ChronoUnit.DAYS.between(inicio,fim)+1;

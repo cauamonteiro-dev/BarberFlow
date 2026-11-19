@@ -3,7 +3,12 @@ import App from "./App";
 import Portal from "./Portal";
 import CustomerPortal from "./CustomerPortal";
 import AdminSettings from "./AdminSettings";
-import { api, errorMessage } from "./api";
+import {
+  api,
+  errorMessage,
+  resumeSessionRequests,
+  suspendSessionRequests,
+} from "./api";
 import { useTheme } from "./useTheme";
 import ThemeToggle from "./ThemeToggle";
 import { ShopIdentity, WelcomeLoading } from "./ShopIdentity";
@@ -37,6 +42,7 @@ export default function AuthShell() {
     [form, setForm] = useState({ nome: "", email: "", senha: "" }),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [signingOut, setSigningOut] = useState(false),
     [entrance, setEntrance] = useState(null),
     [workspaceReady, setWorkspaceReady] = useState(false);
   const onWorkspaceReady = useCallback(() => setWorkspaceReady(true), []);
@@ -50,6 +56,7 @@ export default function AuthShell() {
   }, [entrance, workspaceReady]);
   const { theme, toggleTheme } = useTheme();
   function signed(u, welcome = false) {
+    resumeSessionRequests();
     if (welcome) {
       setWorkspaceReady(false);
       setEntrance(Date.now());
@@ -79,6 +86,8 @@ export default function AuthShell() {
         if (active) setReady(true);
       });
     const expired = () => {
+      suspendSessionRequests();
+      setSettings(false);
       setUser(null);
       setError("Sua sessão terminou. Entre novamente.");
     };
@@ -90,11 +99,16 @@ export default function AuthShell() {
   }, []);
   async function submit(e) {
     e.preventDefault();
+    const nome = form.nome.trim();
+    if (register && !nome) {
+      setError("Informe seu nome.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       if (register) {
-        await api.post("/auth/cadastro", form);
+        await api.post("/auth/cadastro", { ...form, nome });
         setRegister(false);
       }
       signed(
@@ -114,16 +128,19 @@ export default function AuthShell() {
     }
   }
   async function logout() {
-    setBusy(true);
+    setSigningOut(true);
+    setError("");
+    suspendSessionRequests();
     try {
       await api.post("/auth/logout");
       setUser(null);
       setEntrance(null);
       setSettings(false);
     } catch (e) {
+      resumeSessionRequests();
       setError(errorMessage(e));
     } finally {
-      setBusy(false);
+      setSigningOut(false);
     }
   }
   if (!ready) return <WelcomeLoading />;
@@ -233,7 +250,7 @@ export default function AuthShell() {
       {entrance && <WelcomeLoading user={user} role={role} />}
       <div
         className={entrance ? "session-preparing" : "session-workspace"}
-        inert={entrance ? true : undefined}
+        inert={entrance || signingOut ? true : undefined}
         aria-hidden={entrance ? true : undefined}
       >
         <div className="account-bar">
@@ -281,7 +298,7 @@ export default function AuthShell() {
               {settings ? "Voltar à gestão" : "Acessos e horários"}
             </button>
           )}
-          <button className="secondary" onClick={logout} disabled={busy}>
+          <button className="secondary" onClick={logout} disabled={signingOut}>
             Sair
           </button>
         </div>
@@ -291,11 +308,12 @@ export default function AuthShell() {
           </div>
         )}
         {["ADMIN", "BARBEARIA"].includes(role) ? (
-          settings ? (
-            <AdminSettings globalAdmin={role === "ADMIN"} />
-          ) : (
-            <App globalAdmin={role === "ADMIN"} onReady={onWorkspaceReady} />
-          )
+          <div key={role}>
+            <div hidden={settings}>
+              <App globalAdmin={role === "ADMIN"} onReady={onWorkspaceReady} />
+            </div>
+            {settings && <AdminSettings globalAdmin={role === "ADMIN"} />}
+          </div>
         ) : role === "CLIENTE" ? (
           <CustomerPortal user={user} onReady={onWorkspaceReady} />
         ) : (

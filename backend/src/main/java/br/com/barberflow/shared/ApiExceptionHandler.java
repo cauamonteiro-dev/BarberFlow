@@ -1,5 +1,6 @@
 package br.com.barberflow.shared;
 
+import br.com.barberflow.acesso.AuthController;
 import java.net.URI;
 import java.util.Map;
 import java.util.TreeMap;
@@ -26,8 +27,10 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         Map<String, String> errors = new TreeMap<>();
         exception.getBindingResult().getFieldErrors()
                 .forEach(error -> errors.putIfAbsent(error.getField(), error.getDefaultMessage()));
-        ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "Dados inválidos",
-                "Confira os campos informados.");
+        String detail = exception.getBindingResult().getTarget() instanceof AuthController.Cadastro
+                ? String.join(" ", errors.values())
+                : "Confira os campos informados.";
+        ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "Dados inválidos", detail);
         problem.setProperty("errors", errors);
         return handleExceptionInternal(exception, problem, headers, status, request);
     }

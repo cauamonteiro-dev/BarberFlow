@@ -105,7 +105,7 @@ export default function CustomerPortal({ user, onReady }) {
     <div className="app">
       <BrandRail />
       <main>
-        <header className="topbar">
+        <header className="topbar customer-topbar">
           <nav className="customer-main-nav" aria-label="Navegação do cliente">
             <button
               className={view === "home" ? "primary" : "secondary"}

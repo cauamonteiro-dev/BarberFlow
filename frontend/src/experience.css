@@ -1,7 +1,8 @@
-@media (min-width: 761px) {
+@media (min-width: 851px) {
   .sidebar {
     height: 100dvh;
     overflow-y: auto;
+    overflow-x: hidden;
     overscroll-behavior-y: contain;
     scrollbar-width: thin;
     scrollbar-color: #d4b480 #101e2a;
@@ -193,7 +194,19 @@
   padding: 10px;
   min-height: 44px;
 }
+.customer-topbar {
+  flex-wrap: wrap;
+  min-height: 70px;
+  height: auto;
+  gap: 12px 24px;
+  padding-block: 12px;
+}
+.customer-topbar .shop-search-top {
+  margin-inline-start: auto;
+  flex-wrap: wrap;
+}
 .customer-main-nav {
+  min-width: 0;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
@@ -307,7 +320,7 @@
     display: none;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 850px) {
   .sidebar > .workspace-identity {
     display: none;
   }

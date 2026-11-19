@@ -63,6 +63,14 @@ const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+const localMinute = () =>
+  new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Sao_Paulo",
+    dateStyle: "short",
+    timeStyle: "short",
+  })
+    .format(new Date())
+    .replace(" ", "T");
 const fresh = {
   clientes: { nome: "", telefone: "", email: "", status: "ATIVO" },
   barbeiros: { nome: "", status: "ATIVO" },
@@ -133,6 +141,7 @@ export default function App({ globalAdmin = false, onReady }) {
     dialog = useRef(null),
     opener = useRef(null);
   const selected = shops.find((x) => String(x.id) === shop);
+  const canBook = !loading && selected?.ativa === true;
   const load = useCallback(async () => {
     let prepared = false;
     const request = ++requestId.current;
@@ -169,14 +178,7 @@ export default function App({ globalAdmin = false, onReady }) {
       );
       const [links, summary] = await Promise.all([
         api.get(`/barbearias/${chosen}/clientes`),
-        api.get("/relatorios", {
-          params: {
-            ...params,
-            ...Object.fromEntries(
-              Object.entries(filters).filter(([k, v]) => k !== "status" && v),
-            ),
-          },
-        }),
+        api.get("/relatorios", { params }),
       ]);
       if (request !== requestId.current) return;
       setData(
@@ -202,7 +204,7 @@ export default function App({ globalAdmin = false, onReady }) {
       if (request === requestId.current) setLoading(false);
       if (request === requestId.current && prepared) onReady?.();
     }
-  }, [shop, filters, onReady]);
+  }, [shop, onReady]);
   useEffect(() => {
     load();
     return () => {
@@ -352,6 +354,10 @@ export default function App({ globalAdmin = false, onReady }) {
     }
   }
   async function checkAvailability() {
+    if (form.inicio.slice(0, 16) < localMinute()) {
+      setAvailability("Escolha um horário futuro.");
+      return;
+    }
     setAvailability("Consultando…");
     try {
       const r = await api.get("/disponibilidade", {
@@ -433,7 +439,7 @@ export default function App({ globalAdmin = false, onReady }) {
         x.id,
         x.nome +
           (kind === "servicos"
-            ? ` • ${x.duracaoMin} min`
+            ? ` • ${cash(x.preco)} • ${x.duracaoMin} min`
             : kind === "planos"
               ? ` • ${cash(x.preco)}`
               : ""),
@@ -561,7 +567,11 @@ export default function App({ globalAdmin = false, onReady }) {
               {!["resumo", "relatorios"].includes(page) && (
                 <button
                   className="primary"
-                  disabled={loading || (!shop && page !== "barbearias")}
+                  disabled={
+                    page === "agendamentos"
+                      ? !canBook
+                      : loading || (!shop && page !== "barbearias")
+                  }
                   onClick={() => open(page)}
                 >
                   +{" "}
@@ -581,7 +591,7 @@ export default function App({ globalAdmin = false, onReady }) {
               {page === "resumo" && (
                 <button
                   className="primary"
-                  disabled={!shop || loading}
+                  disabled={!canBook}
                   onClick={() => open("agendamentos")}
                 >
                   + Novo agendamento
@@ -1155,7 +1165,7 @@ export default function App({ globalAdmin = false, onReady }) {
                 {select("barbeiroId", "Barbeiro", options("barbeiros"))}
                 {select("servicoId", "Serviço", options("servicos"))}
                 {input("inicio", "Início do atendimento", "datetime-local", {
-                  min: "1900-01-01T00:00",
+                  min: modal.id ? undefined : localMinute(),
                   max: "9998-12-31T23:59",
                 })}
                 <div className="availability full">
@@ -1226,7 +1236,11 @@ export default function App({ globalAdmin = false, onReady }) {
               Cancelar
             </button>
             <button className="primary" disabled={saving}>
-              {saving ? "Salvando…" : "Salvar alterações"}
+              {saving
+                ? "Salvando…"
+                : modal?.kind === "agendamentos" && !modal.id
+                  ? "Criar agendamento"
+                  : "Salvar alterações"}
             </button>
           </div>
         </form>
