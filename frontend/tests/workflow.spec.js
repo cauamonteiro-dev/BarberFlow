@@ -39,8 +39,8 @@ test("gestão completa, conflito de agenda e persistência na interface", async 
   ).toHaveCount(0);
   const nav = page.getByRole("navigation");
   const dialog = page.getByRole("dialog");
-  async function save() {
-    await dialog.getByRole("button", { name: "Salvar alterações" }).click();
+  async function save(label = "Salvar alterações") {
+    await dialog.getByRole("button", { name: label, exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(
       page.getByRole("status").filter({ hasText: "Alterações salvas" }),
@@ -81,6 +81,11 @@ test("gestão completa, conflito de agenda e persistência na interface", async 
   await save();
   await nav.getByRole("button", { name: "Agenda", exact: true }).click();
   await page.getByRole("button", { name: "Novo agendamento" }).click();
+  const bookingDay = new Date();
+  do {
+    bookingDay.setDate(bookingDay.getDate() + 1);
+  } while (bookingDay.getDay() !== 1);
+  const startsAt = `${bookingDay.toLocaleDateString("sv-SE")}T10:00`;
   async function fillBooking() {
     await dialog
       .getByLabel("Cliente", { exact: true })
@@ -90,18 +95,20 @@ test("gestão completa, conflito de agenda e persistência na interface", async 
       .selectOption({ label: "João Teste" });
     await dialog
       .getByLabel("Serviço", { exact: true })
-      .selectOption({ label: "Corte especial • 30 min" });
-    await dialog.getByLabel("Início do atendimento").fill("2027-01-11T10:00");
+      .selectOption({ label: "Corte especial • R$ 45,90 • 30 min" });
+    await dialog.getByLabel("Início do atendimento").fill(startsAt);
   }
   await fillBooking();
   await dialog
     .getByRole("button", { name: "Verificar disponibilidade" })
     .click();
   await expect(dialog.getByRole("status")).toContainText("Horário disponível");
-  await save();
+  await save("Criar agendamento");
   await page.getByRole("button", { name: "Novo agendamento" }).click();
   await fillBooking();
-  await dialog.getByRole("button", { name: "Salvar alterações" }).click();
+  await dialog
+    .getByRole("button", { name: "Criar agendamento", exact: true })
+    .click();
   await expect(dialog.getByRole("alert")).toContainText(
     "já possui um agendamento",
   );
