@@ -1,10 +1,26 @@
 import axios from "axios";
 export const api = axios.create({ baseURL: "/api", timeout: 15000 });
+let sessionRequests = new AbortController();
+
+export function suspendSessionRequests() {
+  sessionRequests.abort();
+}
+
+export function resumeSessionRequests() {
+  if (sessionRequests.signal.aborted) sessionRequests = new AbortController();
+}
+
 api.interceptors.request.use(async (config) => {
+  if (!config.url?.startsWith("/auth/")) {
+    config.signal = config.signal
+      ? AbortSignal.any([config.signal, sessionRequests.signal])
+      : sessionRequests.signal;
+    if (config.signal.aborted) throw new axios.CanceledError();
+  }
   if (
     ["post", "put", "patch", "delete"].includes(config.method?.toLowerCase())
   ) {
-    const response = await api.get("/auth/csrf");
+    const response = await api.get("/auth/csrf", { signal: config.signal });
     config.headers[response.data.header] = response.data.token;
   }
   return config;
@@ -22,6 +38,8 @@ api.interceptors.response.use(
 );
 export function errorMessage(error) {
   const data = error.response?.data;
+  if (error.config?.url === "/auth/cadastro" && data?.detail)
+    return data.detail;
   if (data?.errors)
     return Object.entries(data.errors)
       .map(([field, message]) => `${field}: ${message}`)

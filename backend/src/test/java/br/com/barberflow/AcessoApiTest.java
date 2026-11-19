@@ -43,6 +43,37 @@ class AcessoApiTest {
  LocalDateTime future(){return LocalDate.now().plusDays(1).atTime(10,0);}
  long booking(int cliente,LocalDateTime inicio){return db.queryForObject("insert into agendamento(barbearia_id,cliente_id,barbeiro_id,servico_id,inicio,fim,status,valor_acordado,valor_estimado) values (1,?,1,1,?,?,'AGENDADO',50,false) returning id",Long.class,cliente,inicio,inicio.plusMinutes(30));}
  @Autowired br.com.barberflow.gestao.GestaoService gestao;
+ @Test void agendaObrigaHorarioFuturoSemImpedirConfirmacaoHistorica() throws Exception {
+  var passado = br.com.barberflow.shared.HorarioLocal.agora().toLocalDate().minusDays(1).atTime(10, 0);
+  as(1, get("/api/disponibilidade").param("barbeariaId", "1").param("barbeiroId", "1")
+      .param("servicoId", "1").param("inicio", passado.toString()))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.disponivel").value(false));
+  as(1, post("/api/agendamentos").contentType("application/json").content(json.writeValueAsString(Map.of(
+      "barbeariaId", 1, "barbeiroId", 1, "servicoId", 1, "clienteId", 1, "inicio", passado, "status", "AGENDADO"))))
+      .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value("Escolha um horário futuro."));
+
+  long id = booking(1, passado);
+  as(2, put("/api/portal/atendimentos/" + id).contentType("application/json")
+      .content("{\"status\":\"CONFIRMADO\"}"))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMADO"));
+ }
+
+ @Test void clienteVeNomeDoPlanoDaPropriaAssinatura() throws Exception {
+  db.update("insert into plano(id,barbearia_id,nome,preco,status) values (1,1,'Corte mensal',60,'ATIVO')");
+  db.update("insert into assinatura(cliente_id,plano_id,data_inicio,status) values (1,1,'2026-01-06','ATIVA'),(2,1,'2026-01-06','ATIVA')");
+  as(3, get("/api/portal/painel").param("barbeariaId", "1").param("perfil", "CLIENTE"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.assinaturas.length()").value(1))
+      .andExpect(jsonPath("$.assinaturas[0].planoNome").value("Corte mensal"))
+      .andExpect(jsonPath("$.assinaturas[0].dataInicio").value("2026-01-06"));
+ }
+
+ @Test void nomeEmBrancoTemMensagemDeCadastroLegivel() throws Exception {
+  mvc.perform(post("/api/auth/cadastro").with(csrf()).contentType("application/json")
+      .content("{\"nome\":\"   \",\"email\":\"nova@example.com\",\"senha\":\"Segredo!2026\"}"))
+      .andExpect(status().isBadRequest()).andExpect(jsonPath("$.detail").value("Informe seu nome."));
+ }
+
  @Test void dailySlotsMatchIndividualAvailabilityAcrossBreaksBlocksBookingsAndRescheduling()throws Exception {
   var dia=LocalDate.now().plusDays(2);
   db.update("delete from expediente where barbeiro_id=1");

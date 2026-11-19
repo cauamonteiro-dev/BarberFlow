@@ -55,7 +55,14 @@ export default function ReportDashboard({ shop, barbers, services }) {
     [selection, setSelection] = useState(null);
   const [allHours, setAllHours] = useState(false);
   const generation = useRef(0);
+  const periodError =
+    !filters.de || !filters.ate
+      ? "Informe a data inicial e a data final."
+      : filters.de > filters.ate
+        ? "A data final não pode ser anterior à inicial."
+        : "";
   useEffect(() => {
+    if (periodError) return;
     const id = ++generation.current;
     setLoading(true);
     setError("");
@@ -80,7 +87,7 @@ export default function ReportDashboard({ shop, barbers, services }) {
     return () => {
       ++generation.current;
     };
-  }, [shop, filters, retry]);
+  }, [shop, filters, retry, periodError]);
   function preset(count) {
     const end = new Date(),
       start = new Date();
@@ -173,7 +180,7 @@ export default function ReportDashboard({ shop, barbers, services }) {
           <button
             className="secondary"
             onClick={exportCsv}
-            disabled={!data || loading}
+            disabled={!!periodError || !data || loading}
           >
             Exportar CSV
           </button>
@@ -246,7 +253,12 @@ export default function ReportDashboard({ shop, barbers, services }) {
           </button>
         </div>
       </section>
-      {error && (
+      {periodError && (
+        <div role="alert" className="alert error">
+          {periodError}
+        </div>
+      )}
+      {!periodError && error && (
         <div role="alert" className="alert error">
           {error}
           <button onClick={() => setRetry((n) => n + 1)}>
@@ -254,12 +266,12 @@ export default function ReportDashboard({ shop, barbers, services }) {
           </button>
         </div>
       )}
-      {loading && (
+      {!periodError && loading && (
         <div role="status" className="loading">
           Atualizando indicadores…
         </div>
       )}
-      {data && !loading && (
+      {!periodError && data && !loading && (
         <>
           <p className="report-period">
             {shortDate(data.de)} a {shortDate(data.ate)} · comparação com{" "}

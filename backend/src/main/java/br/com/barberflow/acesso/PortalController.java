@@ -32,12 +32,22 @@ public class PortalController {
    var agenda=service.agendamentos(barbeariaId,null,null,null).stream().filter(a->barbeiro!=null?a.getBarbeiroId().equals(barbeiro):a.getClienteId().equals(cliente)).toList();
    var ids=agenda.stream().map(Agendamento::getClienteId).distinct().toList();
    var clientes=barbeiro==null?List.of(service.cliente(cliente)):ids.stream().map(service::cliente).toList();
-   return Map.of("agendamentos",agenda,"clientes",clientes,"barbeiros",service.barbeiros(barbeariaId).stream().filter(b->barbeiro!=null?b.getId().equals(barbeiro):b.getStatus()==StatusCadastro.ATIVO).toList(),"servicos",service.servicos(barbeariaId).stream().filter(s->s.getStatus()==StatusCadastro.ATIVO||agenda.stream().anyMatch(a->a.getServicoId().equals(s.getId()))).toList(),"assinaturas",barbeiro==null?service.assinaturas(barbeariaId).stream().filter(a->a.getClienteId().equals(cliente)).toList():List.of());
+   return Map.of("agendamentos",agenda,"clientes",clientes,"barbeiros",service.barbeiros(barbeariaId).stream().filter(b->barbeiro!=null?b.getId().equals(barbeiro):b.getStatus()==StatusCadastro.ATIVO).toList(),"servicos",service.servicos(barbeariaId).stream().filter(s->s.getStatus()==StatusCadastro.ATIVO||agenda.stream().anyMatch(a->a.getServicoId().equals(s.getId()))).toList(),"assinaturas",barbeiro==null?assinaturasDoCliente(barbeariaId,cliente):List.of());
+ }
+ private List<Map<String,Object>> assinaturasDoCliente(Long barbeariaId, Long clienteId) {
+   return db.queryForList("""
+       select a.id, a.cliente_id "clienteId", a.plano_id "planoId", p.nome "planoNome",
+           a.data_inicio "dataInicio", a.data_fim "dataFim", a.status
+       from assinatura a join plano p on p.id = a.plano_id
+       where p.barbearia_id = ? and a.cliente_id = ?
+       order by a.id
+       """, barbeariaId, clienteId);
  }
  @GetMapping("/horarios-disponiveis") public Object slots(@RequestParam Long barbeariaId,@RequestParam Long barbeiroId,@RequestParam Long servicoId,@RequestParam LocalDate dia,@RequestParam(required=false) Long ignorarId){
    if(acesso.conta().clienteId()==null&&!Objects.equals(acesso.profissional(barbeariaId),barbeiroId))acesso.negar();
    if(ignorarId!=null){var a=service.agendamento(ignorarId);acesso.cliente(a.getClienteId());if(!a.getBarbeariaId().equals(barbeariaId))acesso.negar();}
-   if(dia.isBefore(LocalDate.now()) || dia.isAfter(LocalDate.now().plusYears(1)))return List.of();
+   var hoje=HorarioLocal.agora().toLocalDate();
+   if(dia.isBefore(hoje) || dia.isAfter(hoje.plusYears(1)))return List.of();
    return service.horariosDisponiveis(barbeariaId,barbeiroId,servicoId,dia,ignorarId);
  }
  public record Reserva(@NotNull Long barbeariaId,@NotNull Long barbeiroId,@NotNull Long servicoId,@NotNull LocalDateTime inicio,@NotNull StatusAgendamento status,java.math.BigDecimal valorEsperado){}
@@ -48,8 +58,8 @@ public class PortalController {
    lojas.bloquear(r.barbeariaId()).orElseThrow(()->new RecursoNaoEncontradoException("Barbearia não encontrada."));
    if(r.status()!=StatusAgendamento.AGENDADO&&r.status()!=StatusAgendamento.CANCELADO)acesso.negar();
    if(id==null&&r.status()!=StatusAgendamento.AGENDADO)throw new RegraNegocioException("Crie o agendamento antes de cancelá-lo.");
-   if(id!=null){var a=service.agendamento(id);acesso.cliente(a.getClienteId());if(!a.getBarbeariaId().equals(r.barbeariaId()))acesso.negar();if(!a.getInicio().isAfter(LocalDateTime.now())||a.getStatus()==StatusAgendamento.CONCLUIDO||a.getStatus()==StatusAgendamento.CANCELADO)throw new RegraNegocioException("Só é possível alterar reservas futuras em aberto.");if(r.status()==StatusAgendamento.CANCELADO&&(!a.getInicio().equals(r.inicio())||!a.getBarbeiroId().equals(r.barbeiroId())||!a.getServicoId().equals(r.servicoId())))throw new RegraNegocioException("Cancele a reserva sem alterar seus dados.");}
-   if(r.status()!=StatusAgendamento.CANCELADO&&!r.inicio().isAfter(LocalDateTime.now()))throw new RegraNegocioException("Escolha um horário futuro.");
+   if(id!=null){var a=service.agendamento(id);acesso.cliente(a.getClienteId());if(!a.getBarbeariaId().equals(r.barbeariaId()))acesso.negar();if(!a.getInicio().isAfter(HorarioLocal.agora())||a.getStatus()==StatusAgendamento.CONCLUIDO||a.getStatus()==StatusAgendamento.CANCELADO)throw new RegraNegocioException("Só é possível alterar reservas futuras em aberto.");if(r.status()==StatusAgendamento.CANCELADO&&(!a.getInicio().equals(r.inicio())||!a.getBarbeiroId().equals(r.barbeiroId())||!a.getServicoId().equals(r.servicoId())))throw new RegraNegocioException("Cancele a reserva sem alterar seus dados.");}
+   if(r.status()!=StatusAgendamento.CANCELADO&&!r.inicio().isAfter(HorarioLocal.agora()))throw new RegraNegocioException("Escolha um horário futuro.");
    // A first booking creates the active shop association, never reactivates an administrative block.
    if(id==null&&db.queryForObject("select count(*) from cliente_barbearia where cliente_id=? and barbearia_id=?",Long.class,cliente,r.barbeariaId())==0)service.vincular(r.barbeariaId(),new Entradas.VinculoInput(cliente,StatusCadastro.ATIVO));
    if(r.status()!=StatusAgendamento.CANCELADO && (id==null || !service.agendamento(id).getServicoId().equals(r.servicoId()))) {
@@ -59,6 +69,6 @@ public class PortalController {
    return service.salvarAgendamento(id,new Entradas.AgendamentoInput(r.barbeariaId(),cliente,r.barbeiroId(),r.servicoId(),r.inicio(),r.status()));
  }
  public record Situacao(@NotNull StatusAgendamento status){}
- @PutMapping("/atendimentos/{id}") @Transactional public Object atender(@PathVariable Long id,@Valid @RequestBody Situacao r){var a=service.agendamento(id);lojas.bloquear(a.getBarbeariaId()).orElseThrow();if(!Objects.equals(acesso.profissional(a.getBarbeariaId()),a.getBarbeiroId()))acesso.negar();if(r.status()!=StatusAgendamento.CONFIRMADO&&r.status()!=StatusAgendamento.CONCLUIDO)acesso.negar();if(a.getStatus()==StatusAgendamento.CANCELADO||a.getStatus()==StatusAgendamento.CONCLUIDO)throw new RegraNegocioException("O atendimento já foi encerrado.");if(r.status()==StatusAgendamento.CONCLUIDO&&a.getInicio().isAfter(LocalDateTime.now()))throw new RegraNegocioException("O atendimento ainda não começou.");return service.salvarAgendamento(id,new Entradas.AgendamentoInput(a.getBarbeariaId(),a.getClienteId(),a.getBarbeiroId(),a.getServicoId(),a.getInicio(),r.status()));}
+ @PutMapping("/atendimentos/{id}") @Transactional public Object atender(@PathVariable Long id,@Valid @RequestBody Situacao r){var a=service.agendamento(id);lojas.bloquear(a.getBarbeariaId()).orElseThrow();if(!Objects.equals(acesso.profissional(a.getBarbeariaId()),a.getBarbeiroId()))acesso.negar();if(r.status()!=StatusAgendamento.CONFIRMADO&&r.status()!=StatusAgendamento.CONCLUIDO)acesso.negar();if(a.getStatus()==StatusAgendamento.CANCELADO||a.getStatus()==StatusAgendamento.CONCLUIDO)throw new RegraNegocioException("O atendimento já foi encerrado.");if(r.status()==StatusAgendamento.CONCLUIDO&&a.getInicio().isAfter(HorarioLocal.agora()))throw new RegraNegocioException("O atendimento ainda não começou.");return service.salvarAgendamento(id,new Entradas.AgendamentoInput(a.getBarbeariaId(),a.getClienteId(),a.getBarbeiroId(),a.getServicoId(),a.getInicio(),r.status()));}
  @GetMapping("/disponibilidade") public Object disponibilidade(@RequestParam Long barbeariaId,@RequestParam Long barbeiroId,@RequestParam Long servicoId,@RequestParam LocalDateTime inicio){if(acesso.conta().clienteId()==null&&!Objects.equals(acesso.profissional(barbeariaId),barbeiroId))acesso.negar();return service.disponibilidade(barbeariaId,barbeiroId,servicoId,inicio,null);}
 }

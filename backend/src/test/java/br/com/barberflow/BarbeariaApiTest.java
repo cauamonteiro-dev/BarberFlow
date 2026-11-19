@@ -158,10 +158,21 @@ class BarbeariaApiTest {
             statement.execute("CREATE DATABASE barberflow_demo_test");
         }
         String url = POSTGRES.getJdbcUrl("postgres", "barberflow_demo_test");
+        Flyway anterior = Flyway.configure().dataSource(url, "postgres", "postgres")
+                .locations("classpath:db/migration", "classpath:db/demo").target("5").load();
+        assertThat(anterior.migrate().migrationsExecuted).isEqualTo(5);
+        JdbcTemplate demoDb = new JdbcTemplate(new org.springframework.jdbc.datasource.DriverManagerDataSource(url, "postgres", "postgres"));
+        demoDb.update("update expediente set inicio='10:00',fim='16:00' where barbeiro_id=1 and dia_semana=7");
+        var agendaAnterior = demoDb.queryForList("select * from agendamento order by id");
+
         Flyway demo = Flyway.configure().dataSource(url, "postgres", "postgres")
                 .locations("classpath:db/migration", "classpath:db/demo").load();
-        assertThat(demo.migrate().migrationsExecuted).isEqualTo(5);
+        assertThat(demo.migrate().migrationsExecuted).isEqualTo(1);
         assertThat(demo.migrate().migrationsExecuted).isZero();
+        assertThat(demoDb.queryForList("select * from agendamento order by id")).isEqualTo(agendaAnterior);
+        assertThat(demoDb.queryForObject("select count(*) from expediente where dia_semana < 7 and inicio = '09:00' and fim = '18:00'", Integer.class)).isEqualTo(270);
+        assertThat(demoDb.queryForList("select barbeiro_id from expediente where dia_semana = 7", Long.class)).containsExactly(1L);
+        assertThat(demoDb.queryForObject("select inicio::text from expediente where barbeiro_id = 1 and dia_semana = 7", String.class)).isEqualTo("10:00:00");
         try (Connection connection = java.sql.DriverManager.getConnection(url, "postgres", "postgres");
              Statement statement = connection.createStatement()) {
             try (var result = statement.executeQuery("""

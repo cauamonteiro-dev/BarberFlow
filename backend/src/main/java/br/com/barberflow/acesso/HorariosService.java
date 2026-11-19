@@ -24,7 +24,7 @@ public class HorariosService {
    Long loja=loja(id);acesso.exigirAdmin(loja);lojas.bloquear(loja).orElseThrow();
    if(faixas.size()>42)throw new RegraNegocioException("Informe no máximo 42 intervalos semanais.");
    for(int i=0;i<faixas.size();i++){var a=faixas.get(i);if(!a.fim().isAfter(a.inicio()))throw new RegraNegocioException("O término deve ser posterior ao início.");for(int k=0;k<i;k++){var b=faixas.get(k);if(a.diaSemana()==b.diaSemana()&&a.inicio().isBefore(b.fim())&&a.fim().isAfter(b.inicio()))throw new RegraNegocioException("Os intervalos de expediente não podem se sobrepor.");}}
-   var reservas=db.query("select inicio,fim from agendamento where barbeiro_id=? and inicio>=? and status in ('AGENDADO','CONFIRMADO')",(rs,n)->new LocalDateTime[]{rs.getObject(1,LocalDateTime.class),rs.getObject(2,LocalDateTime.class)},id,LocalDateTime.now());
+   var reservas=db.query("select inicio,fim from agendamento where barbeiro_id=? and inicio>=? and status in ('AGENDADO','CONFIRMADO')",(rs,n)->new LocalDateTime[]{rs.getObject(1,LocalDateTime.class),rs.getObject(2,LocalDateTime.class)},id,HorarioLocal.agora());
    if(reservas.stream().anyMatch(a->!cabe(faixas,a[0],a[1])))throw new RegraNegocioException("Existem reservas futuras fora do novo expediente. Remarque ou cancele esses atendimentos antes de alterar os horários.");
    db.update("delete from expediente where barbeiro_id=?",id);for(var f:faixas)db.update("insert into expediente(barbeiro_id,dia_semana,inicio,fim) values (?,?,?,?)",id,f.diaSemana(),f.inicio(),f.fim());
  }

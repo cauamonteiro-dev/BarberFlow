@@ -1,5 +1,5 @@
 /* Phone layouts apply after the shared desktop and portal styles. */
-@media (max-width: 760px) {
+@media (max-width: 850px) {
   html {
     scroll-padding-top: 110px;
   }
@@ -587,8 +587,15 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 850px) {
   table tbody td[data-empty="true"] {
     display: none;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 850px) {
+  .sidebar nav {
+    flex-wrap: wrap;
+    overflow-x: visible;
   }
 }

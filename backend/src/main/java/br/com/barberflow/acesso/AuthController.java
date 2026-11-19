@@ -20,7 +20,14 @@ public class AuthController {
  private final JdbcTemplate db;private final PasswordEncoder encoder;private final UserDetailsService users;private final SecurityContextRepository repo;private final Acesso acesso;
  public AuthController(JdbcTemplate db,PasswordEncoder encoder,UserDetailsService users,SecurityContextRepository repo,Acesso acesso){this.db=db;this.encoder=encoder;this.users=users;this.repo=repo;this.acesso=acesso;}
  public record Login(@NotBlank @Email String email,@NotBlank @Size(max=72) String senha){}
- public record Cadastro(@NotBlank @Size(max=100) String nome,@NotBlank @Email @Size(max=120) String email,@NotBlank @Size(min=10,max=72) String senha){}
+ public record Cadastro(
+     @NotBlank(message = "Informe seu nome.")
+     @Size(max = 100, message = "Use até 100 caracteres no nome.") String nome,
+     @NotBlank(message = "Informe seu e-mail.")
+     @Email(message = "Informe um e-mail válido.")
+     @Size(max = 120, message = "Use até 120 caracteres no e-mail.") String email,
+     @NotBlank(message = "Informe sua senha.")
+     @Size(min = 10, max = 72, message = "Use de 10 a 72 caracteres na senha.") String senha) {}
  @GetMapping("/csrf") public Map<String,String> csrf(CsrfToken token){return Map.of("token",token.getToken(),"header",token.getHeaderName());}
  @PostMapping("/login") public Object login(@Valid @RequestBody Login r,HttpServletRequest request,HttpServletResponse response){
    org.springframework.security.core.userdetails.UserDetails user;
