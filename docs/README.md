@@ -1,31 +1,22 @@
-# 01. Identificação do projeto
+---
+description: "Identificação, versão de referência e acesso à demonstração acadêmica implementada do BarberFlow."
+---
 
-### Projeto
+# 01. Identificação do projeto
 
 **BarberFlow — Plataforma de Gestão para Barbearias**
 
-### Unidade Curricular
+| Item | Identificação |
+| --- | --- |
+| Unidade curricular | Banco de Dados |
+| Área | Gestão e agendamento de serviços de barbearia |
+| Registro inicial | RT01 — Revisão Técnica 1 |
+| Estado desta documentação | Revisão da aplicação implementada e demonstrada em novembro de 2026 |
+| Código de referência | [Versão 4571090 no GitHub](https://github.com/cauamonteiro-dev/BarberFlow/tree/4571090cb233b55c7c1ffd8e3ab07434e902371a) |
+| Demonstração hospedada | [Abrir BarberFlow](https://barberflow-demo-x7py.onrender.com/) |
 
-Banco de Dados
+O projeto foi desenvolvido como aplicação web integrada a PostgreSQL, com frontend React/Vite e backend Java 21/Spring Boot. Possui autenticação, quatro perfis de acesso, gestão por unidade, agenda, planos, assinaturas e relatórios interativos.
 
-### Etapa
+A documentação distingue a carga inicial reproduzível de demonstração dos registros criados posteriormente pelo uso da aplicação. Os anexos acadêmicos originais são preservados e identificados como históricos quando não representam o modelo atual completo.
 
-RT01 — Revisão Técnica 1
-
-### Área do projeto
-
-Gestão e administração de serviços de barbearia
-
-### Proposta tecnológica
-
-O BarberFlow será desenvolvido como uma plataforma de gestão para pequenas e médias barbearias, utilizando uma aplicação web integrada a um banco de dados relacional.
-
-### Tecnologias previstas
-
-* React + Vite
-* Java 21
-* Spring Boot
-* PostgreSQL
-* API REST
-* Git/GitHub
-* GitBook
+Para utilizar o sistema, consulte o [manual por perfil](06.-publico-alvo-e-usuarios.md#manual-de-uso-por-perfil). Para executar, publicar ou preservar os dados, consulte [ambientes e operação](15.-integracao-sistema-banco-de-dados.md#execucao-e-publicacao). Esta demonstração não processa pagamentos.
