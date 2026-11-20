@@ -43,10 +43,15 @@ test("cliente solicita adesão e reserva um serviço após a confirmação da un
   });
   expect(created.ok()).toBe(true);
   const { id } = await created.json();
-  const client = await loginRequest(
-    context.request,
-    "cliente@barberflow.local",
-  );
+  const email = `planos.${Date.now()}@example.test`;
+  const senha = "BarberFlow!2026";
+  const csrf = await (await context.request.get("/api/auth/csrf")).json();
+  const registration = await context.request.post("/api/auth/cadastro", {
+    headers: { [csrf.header]: csrf.token },
+    data: { nome: "Cliente de teste de planos", email, senha },
+  });
+  expect(registration.ok()).toBe(true);
+  const client = await loginRequest(context.request, email, senha);
   let subscription;
   try {
     await page.goto("/");

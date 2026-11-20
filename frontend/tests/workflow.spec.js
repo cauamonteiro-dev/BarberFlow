@@ -76,8 +76,8 @@ test("gestão completa, conflito de agenda e persistência na interface", async 
   await dialog
     .getByLabel("Plano", { exact: true })
     .selectOption({ label: "Plano mensal • R$ 99,90" });
-  await dialog.getByLabel("Data inicial").fill("2027-01-01");
-  await dialog.getByLabel("Data final").fill("2027-12-31");
+  await dialog.getByLabel("Data inicial", { exact: true }).fill("2027-01-01");
+  await dialog.getByLabel("Data final", { exact: true }).fill("2027-12-31");
   await save();
   await nav.getByRole("button", { name: "Agenda", exact: true }).click();
   await page.getByRole("button", { name: "Novo agendamento" }).click();
