@@ -9,7 +9,7 @@ import time
 cookies = {}
 
 
-def request(method, path, data=None, headers=None):
+def request(method, path, data=None, headers=None, verify_headers=None):
     conn = http.client.HTTPConnection("127.0.0.1", 10000, timeout=15)
     outgoing = {"X-Forwarded-Proto": "https", **(headers or {})}
     if cookies:
@@ -18,6 +18,8 @@ def request(method, path, data=None, headers=None):
         outgoing["Content-Type"] = "application/json"
     conn.request(method, path, json.dumps(data) if data is not None else None, outgoing)
     res = conn.getresponse()
+    if verify_headers:
+        verify_headers(res)
     body = res.read().decode()
     for key, value in res.getheaders():
         if key.lower() == "set-cookie":
@@ -44,12 +46,29 @@ for attempt in range(90):
 else:
     raise RuntimeError("Cloud image did not start")
 
-status, html = request("GET", "/")
+def verify_showcase_preview(response):
+    assert response.getheader("X-Frame-Options") is None
+    assert response.getheader("Content-Security-Policy") == (
+        "frame-ancestors https://mostraplus.com.br"
+    )
+
+
+def verify_private_api(response):
+    assert response.getheader("X-Frame-Options") == "DENY"
+    assert response.getheader("Access-Control-Allow-Origin") is None
+
+
+status, html = request("GET", "/", verify_headers=verify_showcase_preview)
 assert status == 200 and '<div id="root">' in html, "Built frontend is missing"
+assert request("HEAD", "/index.html", verify_headers=verify_showcase_preview)[0] == 200
 asset = re.search(r'src="([^"]+\.js)"', html)
 assert asset and request("GET", asset.group(1))[0] == 200, "Compiled asset unavailable"
-assert request("GET", "/api/auth/me")[0] == 401
-assert request("GET", "/api/clientes")[0] == 401
+assert request(
+    "GET", "/api/auth/me",
+    headers={"Origin": "https://mostraplus.com.br"},
+    verify_headers=verify_private_api,
+)[0] == 401
+assert request("GET", "/api/clientes", verify_headers=verify_private_api)[0] == 401
 
 
 def post(path, payload):
