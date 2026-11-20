@@ -163,13 +163,20 @@ class BarbeariaApiTest {
         assertThat(anterior.migrate().migrationsExecuted).isEqualTo(5);
         JdbcTemplate demoDb = new JdbcTemplate(new org.springframework.jdbc.datasource.DriverManagerDataSource(url, "postgres", "postgres"));
         demoDb.update("update expediente set inicio='10:00',fim='16:00' where barbeiro_id=1 and dia_semana=7");
-        var agendaAnterior = demoDb.queryForList("select * from agendamento order by id");
+        String agendaSemColunaNova = "select (to_jsonb(a) - 'assinatura_id')::text from agendamento a order by id";
+        var agendaAnterior = demoDb.queryForList(agendaSemColunaNova, String.class);
 
         Flyway demo = Flyway.configure().dataSource(url, "postgres", "postgres")
                 .locations("classpath:db/migration", "classpath:db/demo").load();
-        assertThat(demo.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(demo.migrate().migrationsExecuted).isEqualTo(3);
         assertThat(demo.migrate().migrationsExecuted).isZero();
-        assertThat(demoDb.queryForList("select * from agendamento order by id")).isEqualTo(agendaAnterior);
+        assertThat(demoDb.queryForList(agendaSemColunaNova, String.class)).isEqualTo(agendaAnterior);
+        assertThat(demoDb.queryForObject("select count(*) from agendamento where assinatura_id is not null", Integer.class)).isZero();
+        assertThat(demoDb.queryForObject("""
+                select count(distinct p.barbearia_id) from plano_servico ps
+                join plano p on p.id = ps.plano_id and p.status = 'ATIVO'
+                join servico s on s.id = ps.servico_id and s.barbearia_id = p.barbearia_id and s.status = 'ATIVO'
+                """, Integer.class)).isEqualTo(15);
         assertThat(demoDb.queryForObject("select count(*) from expediente where dia_semana < 7 and inicio = '09:00' and fim = '18:00'", Integer.class)).isEqualTo(270);
         assertThat(demoDb.queryForList("select barbeiro_id from expediente where dia_semana = 7", Long.class)).containsExactly(1L);
         assertThat(demoDb.queryForObject("select inicio::text from expediente where barbeiro_id = 1 and dia_semana = 7", String.class)).isEqualTo("10:00:00");

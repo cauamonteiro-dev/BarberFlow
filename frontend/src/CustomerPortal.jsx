@@ -7,6 +7,11 @@ import { useTheme } from "./useTheme";
 import ShopProfile from "./ShopProfile";
 import { shopPresentation, ShopImage } from "./shopPresentation";
 import CustomerHome from "./CustomerHome";
+import {
+  PlanMessages,
+  SubscriptionCards,
+  usePlanActions,
+} from "./CustomerPlans";
 import "./shop-search.css";
 
 const normalize = (value) =>
@@ -21,6 +26,7 @@ export default function CustomerPortal({ user, onReady }) {
     [profile, setProfile] = useState(null),
     [view, setView] = useState("home"),
     [appointments, setAppointments] = useState([]),
+    [subscriptions, setSubscriptions] = useState([]),
     [initialView, setInitialView] = useState("booking"),
     [query, setQuery] = useState(""),
     [loading, setLoading] = useState(true),
@@ -31,13 +37,15 @@ export default function CustomerPortal({ user, onReady }) {
       setLoading(true);
       setError("");
       try {
-        const [response, bookings] = await Promise.all([
+        const [response, bookings, plans] = await Promise.all([
           api.get("/portal/barbearias", { signal }),
           api.get("/portal/meus-agendamentos", { signal }),
+          api.get("/portal/minhas-assinaturas", { signal }),
         ]);
         if (!signal?.aborted) {
           setShops(response.data.filter((s) => s.ativa === true));
           setAppointments(bookings.data);
+          setSubscriptions(plans.data);
         }
       } catch (e) {
         if (!signal?.aborted) setError(errorMessage(e));
@@ -50,6 +58,7 @@ export default function CustomerPortal({ user, onReady }) {
     },
     [onReady],
   );
+  const planActions = usePlanActions(load);
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
@@ -63,8 +72,8 @@ export default function CustomerPortal({ user, onReady }) {
     setProfile(shop);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
-  const book = (shop) => {
-    setInitialView("booking");
+  const openShop = (shop, section = "booking") => {
+    setInitialView(section);
     setProfile(null);
     setSelected(shop);
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -77,7 +86,8 @@ export default function CustomerPortal({ user, onReady }) {
           setProfile(null);
           window.scrollTo({ top: 0, behavior: "instant" });
         }}
-        onBook={() => book(profile)}
+        onBook={() => openShop(profile)}
+        onPlans={() => openShop(profile, "plans")}
       />
     );
   if (selected)
@@ -124,6 +134,16 @@ export default function CustomerPortal({ user, onReady }) {
             >
               Barbearias
             </button>
+            <button
+              className={view === "plans" ? "primary" : "secondary"}
+              aria-current={view === "plans" ? "page" : undefined}
+              onClick={() => {
+                setView("plans");
+                load();
+              }}
+            >
+              Minhas assinaturas
+            </button>
           </nav>
           <div className="shop-search-top">
             <span>ESPAÇO DO CLIENTE</span>
@@ -145,6 +165,49 @@ export default function CustomerPortal({ user, onReady }) {
                 window.scrollTo({ top: 0, behavior: "instant" });
               }}
             />
+          ) : view === "plans" ? (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Minhas assinaturas</h1>
+                  <p>
+                    Acompanhe seus planos e as solicitações enviadas às
+                    barbearias.
+                  </p>
+                </div>
+                <button className="secondary" onClick={() => setView("shops")}>
+                  Explorar barbearias
+                </button>
+              </div>
+              <PlanMessages actions={planActions} />
+              {loading ? (
+                <div className="loading" role="status">
+                  Carregando suas assinaturas…
+                </div>
+              ) : error ? (
+                <div className="alert error" role="alert">
+                  {error}{" "}
+                  <button className="secondary" onClick={() => load()}>
+                    Tentar novamente
+                  </button>
+                </div>
+              ) : (
+                <SubscriptionCards
+                  subscriptions={subscriptions}
+                  actions={planActions}
+                  onShop={(a) =>
+                    openShop(
+                      {
+                        id: a.barbeariaId,
+                        nome: a.barbeariaNome,
+                        ativa: a.barbeariaAtiva,
+                      },
+                      "plans",
+                    )
+                  }
+                />
+              )}
+            </>
           ) : (
             <>
               <section className="discovery-intro">
@@ -237,7 +300,7 @@ export default function CustomerPortal({ user, onReady }) {
                               className="primary"
                               aria-label={`Ver serviços e horários de ${shop.nome}`}
                               onClick={() => {
-                                book(shop);
+                                openShop(shop);
                               }}
                             >
                               Ver serviços e horários{" "}

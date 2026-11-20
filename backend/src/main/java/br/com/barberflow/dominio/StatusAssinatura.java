@@ -1,3 +1,3 @@
 package br.com.barberflow.dominio;
 
-public enum StatusAssinatura { ATIVA, ENCERRADA, CANCELADA }
+public enum StatusAssinatura { PENDENTE, ATIVA, ENCERRADA, CANCELADA }

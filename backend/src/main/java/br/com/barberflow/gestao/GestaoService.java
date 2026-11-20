@@ -115,10 +115,19 @@ public class GestaoService {
         Plano v=id==null ? new Plano(r.barbeariaId(),r.nome(),r.preco(),r.status()) : plano(id);
         mesmaLoja(v.getBarbeariaId(),r.barbeariaId());
         v.atualizar(r.barbeariaId(),r.nome(),r.preco(),r.status());
+        if (r.servicoIds() != null) {
+            for (Long servicoId : r.servicoIds()) mesmaLoja(servico(servicoId).getBarbeariaId(), r.barbeariaId());
+            v.definirServicos(r.servicoIds());
+        }
         return planos.saveAndFlush(v);
     }
     @Transactional
     public Agendamento salvarAgendamento(Long id, AgendamentoInput r) {
+        return salvarAgendamento(id, r, null);
+    }
+
+    @Transactional
+    public Agendamento salvarAgendamento(Long id, AgendamentoInput r, Long assinaturaSolicitada) {
         var loja=bloquear(r.barbeariaId());
         var profissional=barbeiro(r.barbeiroId());
         var servico=servico(r.servicoId());
@@ -130,6 +139,9 @@ public class GestaoService {
         Agendamento anterior=id==null ? null : agendamento(id);
         if(anterior!=null) entityManager.refresh(anterior);
         if(anterior!=null) mesmaLoja(anterior.getBarbeariaId(),r.barbeariaId());
+        Long assinaturaId = anterior == null ? assinaturaSolicitada : anterior.getAssinaturaId();
+        exigir(assinaturaSolicitada == null || Objects.equals(assinaturaSolicitada, assinaturaId),
+            "A modalidade de uma reserva existente não pode ser alterada.");
         if(anterior!=null && anterior.getStatus()==StatusAgendamento.CONCLUIDO) {
             exigir(anterior.getClienteId().equals(r.clienteId()) && anterior.getBarbeiroId().equals(r.barbeiroId()) && anterior.getServicoId().equals(r.servicoId()) && anterior.getInicio().equals(r.inicio()) && r.status()==StatusAgendamento.CONCLUIDO,"Atendimentos concluídos não podem ser alterados ou reabertos.");
             return anterior;
@@ -152,13 +164,81 @@ public class GestaoService {
         if(r.status()!=StatusAgendamento.CANCELADO) {
             exigir(agendamentos.conflitos(r.barbeiroId(),r.inicio(),fim,id)==0,
                 "O barbeiro já possui um agendamento nesse intervalo.");
+            if (assinaturaId != null && (mudou || reativou)) {
+                validarCobertura(assinaturaId, r, fim.toLocalDate());
+            }
         }
         boolean novoServico=anterior==null || !anterior.getServicoId().equals(r.servicoId());
         Agendamento a=anterior==null ? new Agendamento(r.barbeariaId(),r.clienteId(),r.barbeiroId(),r.servicoId(),r.inicio(),fim,r.status()) : anterior;
         a.atualizar(r.barbeariaId(),r.clienteId(),r.barbeiroId(),r.servicoId(),r.inicio(),fim,r.status());
-        if(novoServico)a.combinarValor(servico.getPreco());
+        if (assinaturaId != null) a.usarAssinatura(assinaturaId);
+        else if (novoServico) a.combinarValor(servico.getPreco());
         if(r.status()==StatusAgendamento.CONCLUIDO)a.concluir();
         return agendamentos.saveAndFlush(a);
+    }
+
+    private void validarCobertura(Long id, AgendamentoInput r, LocalDate termino) {
+        var assinatura = assinatura(id);
+        var plano = plano(assinatura.getPlanoId());
+        exigir(assinatura.getClienteId().equals(r.clienteId()) && plano.getBarbeariaId().equals(r.barbeariaId()),
+            "A assinatura não está disponível para este cliente nesta unidade.");
+        exigir(assinatura.getStatus() == StatusAssinatura.ATIVA && !r.inicio().toLocalDate().isBefore(assinatura.getDataInicio())
+            && (assinatura.getDataFim() == null || !termino.isAfter(assinatura.getDataFim())),
+            "A assinatura precisa estar ativa e cobrir o período do atendimento.");
+        exigir(plano.getServicoIds().contains(r.servicoId()), "Este serviço não está incluído no plano.");
+    }
+
+    @Transactional
+    public Assinatura solicitarAssinatura(Long lojaId, Long clienteId, Long planoId) {
+        var loja = bloquear(lojaId);
+        var plano = plano(planoId);
+        mesmaLoja(plano.getBarbeariaId(), lojaId);
+        var hoje = HorarioLocal.agora().toLocalDate();
+        var existentes = assinaturas.findByClienteIdAndPlanoId(clienteId, planoId);
+        var pendente = existentes.stream().filter(a -> a.getStatus() == StatusAssinatura.PENDENTE).findFirst();
+        if (pendente.isPresent()) return pendente.get();
+        exigir(loja.isAtiva() && plano.getStatus() == StatusCadastro.ATIVO, "Este plano não está disponível para adesão.");
+        exigirServicoDisponivel(plano);
+        exigir(existentes.stream().noneMatch(a -> a.getStatus() == StatusAssinatura.ATIVA &&
+            (a.getDataFim() == null || !a.getDataFim().isBefore(hoje))), "Você já tem uma assinatura deste plano.");
+        var vinculo = vinculos.findByClienteIdAndBarbeariaId(clienteId, lojaId);
+        if (vinculo.isEmpty()) vincular(lojaId, new VinculoInput(clienteId, StatusCadastro.ATIVO));
+        else exigir(vinculo.get().getStatus() == StatusCadastro.ATIVO, "O vínculo do cliente está inativo.");
+        return assinaturas.saveAndFlush(new Assinatura(clienteId, planoId, hoje, null, StatusAssinatura.PENDENTE));
+    }
+
+    private void exigirServicoDisponivel(Plano plano) {
+        exigir(servicos(plano.getBarbeariaId()).stream()
+            .anyMatch(s -> s.getStatus() == StatusCadastro.ATIVO && plano.getServicoIds().contains(s.getId())),
+            "O plano precisa ter pelo menos um serviço disponível.");
+    }
+
+    @Transactional
+    public Assinatura cancelarAssinatura(Long id, Long clienteId) {
+        var a = assinatura(id);
+        if (!a.getClienteId().equals(clienteId)) throw ausente("Assinatura");
+        bloquear(plano(a.getPlanoId()).getBarbeariaId());
+        entityManager.refresh(a);
+        if (!a.getClienteId().equals(clienteId)) throw ausente("Assinatura");
+        if (a.getStatus() == StatusAssinatura.CANCELADA) return a;
+        exigir(a.getStatus() == StatusAssinatura.PENDENTE || a.getStatus() == StatusAssinatura.ATIVA,
+            "Esta assinatura já foi encerrada.");
+        protegerReservasDaAssinatura(a, a.getClienteId(), a.getPlanoId(), a.getDataInicio(), a.getDataFim(), StatusAssinatura.CANCELADA);
+        a.atualizar(a.getClienteId(), a.getPlanoId(), a.getDataInicio(), a.getDataFim(), StatusAssinatura.CANCELADA);
+        return assinaturas.saveAndFlush(a);
+    }
+
+    private void protegerReservasDaAssinatura(Assinatura a, Long clienteId, Long planoId,
+            LocalDate inicio, LocalDate fim, StatusAssinatura status) {
+        if (!a.getClienteId().equals(clienteId) || !a.getPlanoId().equals(planoId)) {
+            exigir(!agendamentos.existsByAssinaturaId(a.getId()), "Uma assinatura usada em reservas não pode trocar de cliente ou plano.");
+        }
+        var futuras = agendamentos.findByAssinaturaIdAndInicioAfterAndStatusIn(a.getId(), HorarioLocal.agora(),
+            List.of(StatusAgendamento.AGENDADO, StatusAgendamento.CONFIRMADO));
+        exigir(futuras.stream().allMatch(reserva -> status == StatusAssinatura.ATIVA
+            && !reserva.getInicio().toLocalDate().isBefore(inicio)
+            && (fim == null || !reserva.getFim().toLocalDate().isAfter(fim))),
+            "Cancele ou remarque os agendamentos futuros do plano antes de encerrar ou reduzir a vigência.");
     }
     @Transactional
     public Assinatura salvarAssinatura(Long id, AssinaturaInput r) {
@@ -169,7 +249,22 @@ public class GestaoService {
         cliente(r.clienteId());
         periodo(r.dataInicio(),r.dataFim());
         Assinatura a=id==null ? null : assinatura(id);
-        if(a!=null) mesmaLoja(plano(a.getPlanoId()).getBarbeariaId(),plano.getBarbeariaId());
+        if (a != null) {
+            entityManager.refresh(a);
+            mesmaLoja(plano(a.getPlanoId()).getBarbeariaId(), plano.getBarbeariaId());
+            exigir(a.getStatus() != StatusAssinatura.CANCELADA || r.status() == StatusAssinatura.CANCELADA,
+                "Uma assinatura cancelada não pode ser reativada. Crie outra assinatura.");
+            if (a.getStatus() == StatusAssinatura.PENDENTE) {
+                exigir(a.getClienteId().equals(r.clienteId()) && a.getPlanoId().equals(r.planoId()),
+                    "A solicitação deve manter o cliente e o plano originais.");
+                if (r.status() == StatusAssinatura.ATIVA) {
+                    exigirServicoDisponivel(plano);
+                    exigir(r.dataFim() == null || !r.dataFim().isBefore(HorarioLocal.agora().toLocalDate()),
+                        "A vigência da adesão não pode terminar no passado.");
+                }
+            }
+            protegerReservasDaAssinatura(a, r.clienteId(), r.planoId(), r.dataInicio(), r.dataFim(), r.status());
+        }
         var vinculo=vinculos.findByClienteIdAndBarbeariaId(r.clienteId(),plano.getBarbeariaId())
             .orElseThrow(() -> new RegraNegocioException("Vincule o cliente à barbearia responsável pelo plano."));
         if(r.status()==StatusAssinatura.ATIVA) {

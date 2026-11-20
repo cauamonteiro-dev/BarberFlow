@@ -68,6 +68,57 @@ class AcessoApiTest {
       .andExpect(jsonPath("$.assinaturas[0].dataInicio").value("2026-01-06"));
  }
 
+ @Test void adesaoDiretaExigeAtivacaoEValidaCoberturaNaReserva() throws Exception {
+  String plano = """
+      {"barbeariaId":1,"nome":"Corte mensal","preco":60,"status":"ATIVO","servicoIds":[1]}
+      """;
+  as(1, post("/api/planos").contentType("application/json").content(plano.replace("[1]", "[2]")))
+      .andExpect(status().isConflict());
+  var salvo = as(1, post("/api/planos").contentType("application/json").content(plano))
+      .andExpect(status().isCreated()).andExpect(jsonPath("$.servicoIds[0]").value(1)).andReturn();
+  long planoId = json.readTree(salvo.getResponse().getContentAsString()).get("id").asLong();
+  String forjado = json.writeValueAsString(Map.of("barbeariaId", 1, "planoId", planoId, "clienteId", 2));
+  as(3, post("/api/portal/assinaturas").contentType("application/json").content(forjado))
+      .andExpect(status().isBadRequest());
+  String pedido = json.writeValueAsString(Map.of("barbeariaId", 1, "planoId", planoId));
+  var solicitacao = as(3, post("/api/portal/assinaturas").contentType("application/json").content(pedido))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.clienteId").value(1))
+      .andExpect(jsonPath("$.status").value("PENDENTE")).andReturn();
+  long id = json.readTree(solicitacao.getResponse().getContentAsString()).get("id").asLong();
+  as(3, post("/api/portal/assinaturas").contentType("application/json").content(pedido))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id));
+  as(5, get("/api/portal/minhas-assinaturas")).andExpect(jsonPath("$.length()").value(0));
+  as(5, put("/api/portal/assinaturas/" + id + "/cancelamento")).andExpect(status().isNotFound());
+  as(4, get("/api/assinaturas/" + id)).andExpect(status().isForbidden());
+
+  var dia = future().toLocalDate();
+  var dados = json.createObjectNode().put("barbeariaId", 1).put("barbeiroId", 1).put("servicoId", 1)
+      .put("inicio", dia.atTime(10, 0).toString()).put("status", "AGENDADO").put("assinaturaId", id);
+  as(3, post("/api/portal/agendamentos").contentType("application/json").content(dados.toString()))
+      .andExpect(status().isConflict());
+  String ativacao = json.writeValueAsString(Map.of("clienteId", 1, "planoId", planoId,
+      "dataInicio", dia.toString(), "dataFim", dia.toString(), "status", "ATIVA"));
+  as(1, put("/api/assinaturas/" + id).contentType("application/json").content(ativacao))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ATIVA"));
+  as(5, post("/api/portal/agendamentos").contentType("application/json").content(dados.toString()))
+      .andExpect(status().isConflict());
+  as(3, post("/api/portal/agendamentos").contentType("application/json")
+      .content(dados.deepCopy().put("inicio", dia.plusDays(1).atTime(10, 0).toString()).toString()))
+      .andExpect(status().isConflict());
+  db.update("insert into servico(id,barbearia_id,nome,preco,duracao_min,status) values (3,1,'Extra',10,15,'ATIVO')");
+  as(3, post("/api/portal/agendamentos").contentType("application/json")
+      .content(dados.deepCopy().put("servicoId", 3).toString())).andExpect(status().isConflict());
+  var reserva = as(3, post("/api/portal/agendamentos").contentType("application/json").content(dados.toString()))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.assinaturaId").value(id))
+      .andExpect(jsonPath("$.valorAcordado").value(0)).andReturn();
+  long reservaId = json.readTree(reserva.getResponse().getContentAsString()).get("id").asLong();
+  as(3, put("/api/portal/assinaturas/" + id + "/cancelamento")).andExpect(status().isConflict());
+  as(3, put("/api/portal/agendamentos/" + reservaId).contentType("application/json")
+      .content(dados.put("status", "CANCELADO").toString())).andExpect(status().isOk());
+  as(3, put("/api/portal/assinaturas/" + id + "/cancelamento"))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELADA"));
+ }
+
  @Test void nomeEmBrancoTemMensagemDeCadastroLegivel() throws Exception {
   mvc.perform(post("/api/auth/cadastro").with(csrf()).contentType("application/json")
       .content("{\"nome\":\"   \",\"email\":\"nova@example.com\",\"senha\":\"Segredo!2026\"}"))

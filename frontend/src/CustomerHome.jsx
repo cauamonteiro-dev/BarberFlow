@@ -119,7 +119,9 @@ export default function CustomerHome({
                     </div>
                     <p>
                       Com {a.barbeiroNome} • Até {a.fim.slice(11, 16)} •{" "}
-                      {currency(a.valorAcordado)}
+                      {a.assinaturaId
+                        ? "Incluído no plano"
+                        : currency(a.valorAcordado)}
                       {a.valorEstimado ? " (estimado)" : ""}
                     </p>
                     {!a.barbeariaAtiva && (

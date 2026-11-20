@@ -40,11 +40,12 @@ test("consulta lenta exibe carregamento antes de permitir escolher horário", as
     await route.fulfill({ json: [slot] });
   });
   await form(page, context);
-  const select = page.getByRole("combobox", {
+  const times = page.getByRole("group", {
     name: "Horário disponível",
     exact: true,
   });
-  await expect(select).toBeDisabled();
+  await expect(times).toHaveAttribute("aria-busy", "true");
+  await expect(times.getByRole("radio")).toHaveCount(0);
   await expect(
     page.getByText("Consultando os horários disponíveis…", { exact: true }),
   ).toBeVisible();
@@ -52,9 +53,10 @@ test("consulta lenta exibe carregamento antes de permitir escolher horário", as
     page.getByRole("button", { name: "Salvar agendamento", exact: true }),
   ).toBeDisabled();
   release();
-  await expect(select).toBeEnabled();
-  await select.selectOption(slot.inicio);
-  await expect(select).toHaveValue(slot.inicio);
+  await times.getByText("10:00", { exact: true }).click();
+  await expect(
+    times.getByRole("radio", { name: "10:00 até 10:50" }),
+  ).toBeChecked();
   await expect(
     page.getByRole("button", { name: "Salvar agendamento", exact: true }),
   ).toBeEnabled();
@@ -72,11 +74,9 @@ test("falha oferece nova tentativa e ausência de vagas tem mensagem específica
   );
   await form(page, context);
   await expect(
-    page
-      .getByRole("status")
-      .filter({
-        hasText: "Não foi possível consultar os horários. Tente novamente.",
-      }),
+    page.getByRole("status").filter({
+      hasText: "Não foi possível consultar os horários. Tente novamente.",
+    }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Tentar novamente", exact: true })
@@ -88,6 +88,8 @@ test("falha oferece nova tentativa e ausência de vagas tem mensagem específica
     ),
   ).toBeVisible();
   await expect(
-    page.getByRole("combobox", { name: "Horário disponível", exact: true }),
-  ).toBeDisabled();
+    page
+      .getByRole("group", { name: "Horário disponível", exact: true })
+      .getByRole("radio"),
+  ).toHaveCount(0);
 });

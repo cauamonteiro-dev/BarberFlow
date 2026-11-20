@@ -27,9 +27,12 @@ public class Agendamento {
     @Column(name="valor_acordado",precision=10,scale=2) private BigDecimal valorAcordado;
     @Column(name="valor_estimado",nullable=false) private boolean valorEstimado=true;
     @Column(name="concluido_em") private LocalDateTime concluidoEm;
+    @Column(name="assinatura_id") private Long assinaturaId;
     public BigDecimal getValorAcordado(){return valorAcordado;}
     public boolean isValorEstimado(){return valorEstimado;}
     public LocalDateTime getConcluidoEm(){return concluidoEm;}
+    public Long getAssinaturaId(){return assinaturaId;}
+    public void usarAssinatura(Long id){this.assinaturaId=id; combinarValor(BigDecimal.ZERO);}
     public void combinarValor(BigDecimal valor){this.valorAcordado=valor;this.valorEstimado=false;}
     public void concluir(){if(concluidoEm==null)concluidoEm=LocalDateTime.now();}
     protected Agendamento() {}

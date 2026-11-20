@@ -6,22 +6,25 @@ import { useTheme } from "./useTheme";
 import ThemeToggle from "./ThemeToggle";
 import { shopPresentation, ShopImage } from "./shopPresentation";
 import { ShopIdentity, ShopLogo } from "./ShopIdentity";
+import { DateField, SlotPicker, today } from "./BookingFields";
+import { ShopPlanArea, usable, usePlanActions } from "./CustomerPlans";
 import "./shop-search.css";
 const money = (n) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     n ?? 0,
   );
 const date = (s) => (s ? new Date(s).toLocaleString("pt-BR") : "—");
-const shortDate = (value) =>
-  new Date(value + "T12:00:00").toLocaleDateString("pt-BR");
-const subscriptionStatus = {
-  ATIVA: "Ativa",
-  ENCERRADA: "Encerrada",
-  CANCELADA: "Cancelada",
+const emptyBooking = {
+  barbeiroId: "",
+  servicoId: "",
+  inicio: "",
+  status: "AGENDADO",
+  assinaturaId: "",
 };
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const lastBookableDay = () => {
+  const [year, month, day] = today().split("-").map(Number);
+  const inNextYear = Math.min(day, new Date(year + 1, month, 0).getDate());
+  return `${year + 1}-${String(month).padStart(2, "0")}-${String(inNextYear).padStart(2, "0")}`;
 };
 export default function Portal({
   role,
@@ -51,6 +54,28 @@ export default function Portal({
     [barberAll, setBarberAll] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const client = role === "CLIENTE";
+  const subscriptions = data?.assinaturas ?? [];
+  const findPlan = (id) => data?.planos?.find((plan) => plan.id === id);
+  const plansForBooking = subscriptions.filter(
+    (a) =>
+      usable(a) &&
+      data?.servicos.some(
+        (s) =>
+          s.status === "ATIVO" &&
+          findPlan(a.planoId)?.servicoIds?.includes(s.id),
+      ),
+  );
+  const selectedSubscription = subscriptions.find(
+    (a) => a.id === Number(form?.assinaturaId),
+  );
+  const coveredPlan = findPlan(selectedSubscription?.planoId);
+  const minDay = [today(), selectedSubscription?.dataInicio]
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const maxDay = [lastBookableDay(), selectedSubscription?.dataFim]
+    .filter(Boolean)
+    .sort()[0];
   const requestId = useRef(0);
   const ready = data?.barbeariaId === shop;
   const activeShop = selectedShop || shops.find((s) => String(s.id) === shop);
@@ -110,6 +135,15 @@ export default function Portal({
       if (generation === requestId.current) onReady?.();
     }
   }, [shop, role, client, onReady]);
+  const planActions = usePlanActions(load);
+  function openBooking(subscription) {
+    setClientView("booking");
+    setNotice("");
+    setForm({ ...emptyBooking, assinaturaId: subscription?.id ?? "" });
+    setDay(
+      subscription?.dataInicio > today() ? subscription.dataInicio : today(),
+    );
+  }
   useEffect(() => {
     setData(null);
     setHours(null);
@@ -124,7 +158,13 @@ export default function Portal({
     const controller = new AbortController();
     setSlots([]);
     setSlotsError("");
-    if (form?.barbeiroId && form?.servicoId && day) {
+    if (
+      form?.barbeiroId &&
+      form?.servicoId &&
+      day &&
+      day >= minDay &&
+      day <= maxDay
+    ) {
       setSlotsState("loading");
       api
         .get("/portal/horarios-disponiveis", {
@@ -157,15 +197,19 @@ export default function Portal({
       active = false;
       controller.abort();
     };
-  }, [form?.barbeiroId, form?.servicoId, form?.id, day, shop, slotsRetry]);
+  }, [
+    form?.barbeiroId,
+    form?.servicoId,
+    form?.id,
+    day,
+    minDay,
+    maxDay,
+    shop,
+    slotsRetry,
+  ]);
   useEffect(() => {
     if (client && selectedShop && ready && initialView === "booking") {
-      setForm({
-        barbeiroId: "",
-        servicoId: "",
-        inicio: "",
-        status: "AGENDADO",
-      });
+      setForm({ ...emptyBooking });
       setDay(today());
     }
   }, [client, selectedShop, ready, initialView]);
@@ -177,6 +221,7 @@ export default function Portal({
     servicoId: Number(a.servicoId),
     inicio: a.inicio,
     status: a.status || "AGENDADO",
+    assinaturaId: a.assinaturaId ? Number(a.assinaturaId) : null,
     valorEsperado: Number(
       data?.servicos.find((s) => s.id === Number(a.servicoId))?.preco,
     ),
@@ -271,7 +316,7 @@ export default function Portal({
               <ShopImage shop={selectedShop} />
               <div>
                 <ShopLogo shop={selectedShop} />
-                <p className="eyebrow">VOCÊ ESTÁ AGENDANDO EM</p>
+                <p className="eyebrow">UNIDADE SELECIONADA</p>
                 <h2>{selectedShop.nome}</h2>
                 <p>{shopPresentation(selectedShop).address}</p>
                 <span>
@@ -301,14 +346,18 @@ export default function Portal({
                 {client
                   ? clientView === "booking"
                     ? "Agendar serviço"
-                    : "Meus agendamentos"
+                    : clientView === "plans"
+                      ? "Planos e assinaturas"
+                      : "Meus agendamentos"
                   : `Olá, ${professionalName.split(" ")[0]}!`}
               </h1>
               <p>
                 {client
                   ? clientView === "booking"
                     ? "Escolha um serviço, um profissional e um horário disponível."
-                    : "Somente suas reservas nesta barbearia. Você pode remarcar ou cancelar atendimentos futuros em aberto."
+                    : clientView === "plans"
+                      ? "Combine a contratação e o pagamento com a barbearia. Quando ela ativar seu plano, você poderá agendar os serviços incluídos."
+                      : "Somente suas reservas nesta barbearia. Você pode remarcar ou cancelar atendimentos futuros em aberto."
                   : `Segue abaixo ${barberAll ? "a sua agenda" : "os agendamentos do dia"} em ${activeShop?.nome || "sua barbearia"}.`}
               </p>
             </div>
@@ -316,16 +365,7 @@ export default function Portal({
               <button
                 className="primary"
                 disabled={!ready || busy}
-                onClick={() => {
-                  setClientView("booking");
-                  setForm({
-                    barbeiroId: "",
-                    servicoId: "",
-                    inicio: "",
-                    status: "AGENDADO",
-                  });
-                  setDay(today());
-                }}
+                onClick={() => openBooking()}
               >
                 Novo agendamento
               </button>
@@ -337,17 +377,7 @@ export default function Portal({
                 className={clientView === "booking" ? "primary" : "secondary"}
                 aria-current={clientView === "booking" ? "page" : undefined}
                 disabled={!ready || busy}
-                onClick={() => {
-                  setClientView("booking");
-                  setNotice("");
-                  setForm({
-                    barbeiroId: "",
-                    servicoId: "",
-                    inicio: "",
-                    status: "AGENDADO",
-                  });
-                  setDay(today());
-                }}
+                onClick={() => openBooking()}
               >
                 Agendar serviço
               </button>
@@ -367,6 +397,18 @@ export default function Portal({
               >
                 Meus agendamentos
               </button>
+              <button
+                className={clientView === "plans" ? "primary" : "secondary"}
+                aria-current={clientView === "plans" ? "page" : undefined}
+                disabled={!ready || busy}
+                onClick={() => {
+                  setClientView("plans");
+                  setForm(null);
+                  setNotice("");
+                }}
+              >
+                Planos e assinaturas
+              </button>
             </nav>
           )}
           {!client && (
@@ -377,17 +419,14 @@ export default function Portal({
                   {professionalName} • {activeShop?.nome}
                 </p>
               </div>
-              <label>
-                Dia da agenda
-                <input
-                  type="date"
-                  value={barberDay}
-                  onChange={(e) => {
-                    setBarberDay(e.target.value);
-                    setBarberAll(false);
-                  }}
-                />
-              </label>
+              <DateField
+                label="Dia da agenda"
+                value={barberDay}
+                onChange={(value) => {
+                  setBarberDay(value);
+                  setBarberAll(false);
+                }}
+              />
               <button
                 className="secondary"
                 aria-pressed={barberAll}
@@ -412,6 +451,16 @@ export default function Portal({
               Nenhuma barbearia disponível para este acesso.
             </div>
           )}
+          {ready && client && clientView === "plans" && (
+            <ShopPlanArea
+              plans={data.planos ?? []}
+              subscriptions={subscriptions}
+              services={data.servicos}
+              shop={activeShop}
+              actions={planActions}
+              onBook={openBooking}
+            />
+          )}
           {form && (!client || clientView === "booking") && (
             <section className="panel portal-form">
               <h2>{form.id ? "Remarcar atendimento" : "Novo agendamento"}</h2>
@@ -427,6 +476,35 @@ export default function Portal({
                 }}
               >
                 <div className="form-fields">
+                  {!form.id && plansForBooking.length > 0 && (
+                    <label className="full">
+                      Modalidade do agendamento
+                      <select
+                        value={form.assinaturaId ?? ""}
+                        onChange={(event) =>
+                          openBooking(
+                            plansForBooking.find(
+                              (a) => String(a.id) === event.target.value,
+                            ),
+                          )
+                        }
+                      >
+                        <option value="">Serviço avulso</option>
+                        {plansForBooking.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.planoNome}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {form.assinaturaId && (
+                    <p className="plan-benefit-note full">
+                      Agendamento pelo plano {selectedSubscription?.planoNome}.
+                      Escolha um serviço incluído para atender dentro da
+                      vigência.
+                    </p>
+                  )}
                   <label>
                     Barbeiro
                     <select
@@ -465,54 +543,40 @@ export default function Portal({
                     >
                       <option value="">Selecione…</option>
                       {data?.servicos
-                        .filter((s) => s.status === "ATIVO")
+                        .filter(
+                          (s) =>
+                            s.status === "ATIVO" &&
+                            (!form.assinaturaId ||
+                              coveredPlan?.servicoIds?.includes(s.id)),
+                        )
                         .map((s) => (
                           <option key={s.id} value={s.id}>
-                            {s.nome} • {money(s.preco)} • {s.duracaoMin} min
+                            {s.nome} •{" "}
+                            {form.assinaturaId
+                              ? "Incluído no plano"
+                              : money(s.preco)}{" "}
+                            • {s.duracaoMin} min
                           </option>
                         ))}
                     </select>
                   </label>
-                  <label>
-                    Dia
-                    <input
-                      type="date"
-                      min={today()}
-                      required
-                      value={day}
-                      onChange={(e) => {
-                        setDay(e.target.value);
-                        setForm({ ...form, inicio: "" });
-                      }}
-                    />
-                  </label>
-                  <label>
-                    Horário disponível
-                    <select
-                      required
-                      value={form.inicio}
-                      disabled={slotsState !== "success" || !slots.length}
-                      aria-busy={slotsState === "loading"}
-                      onChange={(e) =>
-                        setForm({ ...form, inicio: e.target.value })
-                      }
-                    >
-                      <option value="">
-                        {slotsState === "loading"
-                          ? "Consultando horários…"
-                          : slotsState === "error"
-                            ? "Falha ao consultar"
-                            : slotsState === "success" && !slots.length
-                              ? "Nenhum horário disponível"
-                              : "Selecione…"}
-                      </option>
-                      {slots.map((s) => (
-                        <option key={s.inicio} value={s.inicio}>
-                          {s.inicio.slice(11, 16)} — {s.fim.slice(11, 16)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <DateField
+                    label="Dia"
+                    min={minDay}
+                    max={maxDay}
+                    required
+                    value={day}
+                    onChange={(value) => {
+                      setDay(value);
+                      setForm({ ...form, inicio: "" });
+                    }}
+                  />
+                  <SlotPicker
+                    slots={slots}
+                    state={slotsState}
+                    value={form.inicio}
+                    onChange={(inicio) => setForm({ ...form, inicio })}
+                  />
                   <p
                     className="form-note full"
                     role="status"
@@ -537,6 +601,7 @@ export default function Portal({
                       </button>
                     )}
                     {form.id &&
+                      !form.assinaturaId &&
                       " O valor combinado é mantido ao remarcar o mesmo serviço."}
                   </p>
                 </div>
@@ -613,7 +678,10 @@ export default function Portal({
                               <strong>{name("servicos", a.servicoId)}</strong>
                               <small>
                                 Profissional: {name("barbeiros", a.barbeiroId)}{" "}
-                                • {money(a.valorAcordado)}
+                                •{" "}
+                                {a.assinaturaId
+                                  ? "Incluído no plano"
+                                  : money(a.valorAcordado)}
                                 {a.valorEstimado ? " (estimado)" : ""}
                               </small>
                             </td>
@@ -730,36 +798,6 @@ export default function Portal({
                   )}
                 </div>
               </section>
-              {client && data.assinaturas.length > 0 && (
-                <section className="panel portal-section">
-                  <div className="panel-heading">
-                    <h2>Minhas assinaturas nesta unidade</h2>
-                  </div>
-                  <div className="table-wrap">
-                    <ResponsiveTable>
-                      <thead>
-                        <tr>
-                          <th>Plano</th>
-                          <th>Período</th>
-                          <th>Situação</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.assinaturas.map((a) => (
-                          <tr key={a.id}>
-                            <td>{a.planoNome}</td>
-                            <td>
-                              {shortDate(a.dataInicio)} —{" "}
-                              {a.dataFim ? shortDate(a.dataFim) : "Sem término"}
-                            </td>
-                            <td>{subscriptionStatus[a.status]}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </ResponsiveTable>
-                  </div>
-                </section>
-              )}
               {hours && (
                 <section className="panel portal-section">
                   <div className="panel-heading">

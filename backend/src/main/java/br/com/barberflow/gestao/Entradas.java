@@ -5,6 +5,7 @@ import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public final class Entradas {
     private Entradas() {}
@@ -26,7 +27,7 @@ public final class Entradas {
     }
     public record PlanoInput(@NotNull @Positive Long barbeariaId, @NotBlank @Size(max=100) String nome,
         @NotNull @DecimalMin("0.00") @Digits(integer=8,fraction=2) BigDecimal preco,
-        @NotNull StatusCadastro status) {
+        @NotNull StatusCadastro status, @Size(max=200) List<@NotNull @Positive Long> servicoIds) {
         public PlanoInput { nome=limpar(nome); }
     }
     public record AgendamentoInput(@NotNull @Positive Long barbeariaId, @NotNull @Positive Long clienteId,
