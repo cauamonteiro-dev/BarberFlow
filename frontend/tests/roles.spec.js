@@ -84,19 +84,17 @@ test("cliente cadastra acesso, reserva, remarca e cancela no próprio portal", a
     } while (day.getDay() !== 1);
     const dayText = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
     await page.getByLabel("Dia", { exact: true }).fill(dayText);
-    const slots = page.getByRole("combobox", {
+    const slots = page.getByRole("group", {
       name: "Horário disponível",
       exact: true,
     });
-    await expect(slots.locator("option")).not.toHaveCount(1);
-    await slots.selectOption({ index: 1 });
+    await slots.locator(".slot-option").first().click();
     await page.getByRole("button", { name: "Salvar agendamento" }).click();
     await expect(
       page.getByRole("button", { name: "Remarcar", exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Remarcar", exact: true }).click();
-    await expect(slots.locator("option")).not.toHaveCount(1);
-    await slots.selectOption({ index: 2 });
+    await slots.locator(".slot-option").nth(1).click();
     await page.getByRole("button", { name: "Salvar agendamento" }).click();
     fs.mkdirSync("../.local/qa", { recursive: true });
     await page.screenshot({

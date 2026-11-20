@@ -5,6 +5,7 @@ import { api, errorMessage } from "./api";
 import { useTheme } from "./useTheme";
 import ThemeToggle from "./ThemeToggle";
 import { ShopIdentity, ShopLogo } from "./ShopIdentity";
+import { DateField, today } from "./BookingFields";
 
 const pages = [
   ["resumo", "Visão geral", "◈"],
@@ -32,12 +33,13 @@ const titles = {
   planos: ["Planos", "Ofereça mais motivos para o cliente voltar."],
   assinaturas: [
     "Assinaturas",
-    "Acompanhe os planos e os períodos contratados.",
+    "Confirme solicitações dos clientes e acompanhe os períodos contratados.",
   ],
   barbearias: ["Barbearias", "Gerencie suas unidades em um só lugar."],
   relatorios: ["Relatórios", "Transforme os dados da operação em informação."],
 };
 const labels = {
+  PENDENTE: "Aguardando confirmação",
   ATIVO: "Ativo",
   INATIVO: "Inativo",
   ATIVA: "Ativa",
@@ -59,10 +61,6 @@ const date = (s) =>
         ...(s.includes("T") ? { timeStyle: "short" } : {}),
       }).format(new Date(s.length === 10 ? s + "T12:00:00" : s))
     : "Sem término";
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
 const localMinute = () =>
   new Intl.DateTimeFormat("sv-SE", {
     timeZone: "America/Sao_Paulo",
@@ -75,7 +73,7 @@ const fresh = {
   clientes: { nome: "", telefone: "", email: "", status: "ATIVO" },
   barbeiros: { nome: "", status: "ATIVO" },
   servicos: { nome: "", preco: "", duracaoMin: 30, status: "ATIVO" },
-  planos: { nome: "", preco: "", status: "ATIVO" },
+  planos: { nome: "", preco: "", status: "ATIVO", servicoIds: [] },
   assinaturas: {
     clienteId: "",
     planoId: "",
@@ -314,6 +312,7 @@ export default function App({ globalAdmin = false, onReady }) {
           nome: form.nome,
           status: form.status,
           preco: Number(form.preco),
+          servicoIds: form.servicoIds,
         };
       if (kind === "agendamentos")
         payload = {
@@ -378,19 +377,29 @@ export default function App({ globalAdmin = false, onReady }) {
       setAvailability(errorMessage(e));
     }
   }
-  const input = (name, label, type = "text", extra = {}) => (
-    <label>
-      {label}
-      <input
+  const input = (name, label, type = "text", extra = {}) =>
+    type === "date" ? (
+      <DateField
         name={name}
-        type={type}
-        value={form[name] ?? ""}
-        onChange={(e) => field(name, e.target.value)}
+        label={label}
         required
+        value={form[name] ?? ""}
+        onChange={(value) => field(name, value)}
         {...extra}
       />
-    </label>
-  );
+    ) : (
+      <label>
+        {label}
+        <input
+          name={name}
+          type={type}
+          value={form[name] ?? ""}
+          onChange={(e) => field(name, e.target.value)}
+          required
+          {...extra}
+        />
+      </label>
+    );
   const select = (name, label, options) => (
     <label>
       {label}
@@ -981,6 +990,9 @@ export default function App({ globalAdmin = false, onReady }) {
                                     </strong>
                                     <small>
                                       {names("servicos", x.servicoId)}
+                                      {x.assinaturaId
+                                        ? " • Incluído em plano"
+                                        : ""}
                                     </small>
                                   </td>
                                   <td>{names("barbeiros", x.barbeiroId)}</td>
@@ -1018,6 +1030,17 @@ export default function App({ globalAdmin = false, onReady }) {
                                   <td>
                                     <strong>{x.nome}</strong>
                                     <small>#{x.id}</small>
+                                    {page === "planos" && (
+                                      <small>
+                                        {x.servicoIds?.length
+                                          ? x.servicoIds
+                                              .map((id) =>
+                                                names("servicos", id),
+                                              )
+                                              .join(", ")
+                                          : "Sem serviços incluídos"}
+                                      </small>
+                                    )}
                                   </td>
                                   {["servicos", "planos"].includes(page) && (
                                     <td>{cash(x.preco)}</td>
@@ -1039,10 +1062,31 @@ export default function App({ globalAdmin = false, onReady }) {
                               <td>
                                 <button
                                   className="edit"
-                                  aria-label={`Editar ${x.nome || "registro " + x.id}`}
-                                  onClick={() => open(page, x)}
+                                  aria-label={
+                                    page === "assinaturas" &&
+                                    x.status === "PENDENTE"
+                                      ? "Analisar adesão"
+                                      : `Editar ${x.nome || "registro " + x.id}`
+                                  }
+                                  onClick={() =>
+                                    open(
+                                      page,
+                                      page === "assinaturas" &&
+                                        x.status === "PENDENTE"
+                                        ? {
+                                            ...x,
+                                            status: "ATIVA",
+                                            dataInicio: today(),
+                                            pendingRequest: true,
+                                          }
+                                        : x,
+                                    )
+                                  }
                                 >
-                                  Editar ↗
+                                  {page === "assinaturas" &&
+                                  x.status === "PENDENTE"
+                                    ? "Analisar adesão"
+                                    : "Editar ↗"}
                                 </button>
                               </td>
                             </tr>
@@ -1146,6 +1190,39 @@ export default function App({ globalAdmin = false, onReady }) {
                 max: 1440,
                 step: 1,
               })}
+            {modal?.kind === "planos" && (
+              <fieldset className="plan-service-picker full">
+                <legend>Serviços incluídos no plano</legend>
+                {data.servicos.length ? (
+                  data.servicos.map((service) => (
+                    <label className="plan-service-option" key={service.id}>
+                      <input
+                        type="checkbox"
+                        checked={form.servicoIds.includes(service.id)}
+                        onChange={(e) =>
+                          field(
+                            "servicoIds",
+                            e.target.checked
+                              ? [...form.servicoIds, service.id]
+                              : form.servicoIds.filter(
+                                  (id) => id !== service.id,
+                                ),
+                          )
+                        }
+                      />
+                      <span>
+                        {service.nome}
+                        {service.status !== "ATIVO" ? " (inativo)" : ""}
+                      </span>
+                    </label>
+                  ))
+                ) : (
+                  <p>
+                    Cadastre serviços nesta unidade para incluí-los no plano.
+                  </p>
+                )}
+              </fieldset>
+            )}
             {modal?.kind === "barbearias" &&
               select("ativa", "Situação", [
                 ["true", "Ativa"],
@@ -1159,7 +1236,13 @@ export default function App({ globalAdmin = false, onReady }) {
               )}
             {modal &&
               ["assinaturas", "agendamentos"].includes(modal.kind) &&
-              select("clienteId", "Cliente", options("clientes"))}
+              (form.pendingRequest ? (
+                <p className="full">
+                  Cliente <strong>{names("clientes", form.clienteId)}</strong>
+                </p>
+              ) : (
+                select("clienteId", "Cliente", options("clientes"))
+              ))}
             {modal?.kind === "agendamentos" && (
               <>
                 {select("barbeiroId", "Barbeiro", options("barbeiros"))}
@@ -1186,7 +1269,14 @@ export default function App({ globalAdmin = false, onReady }) {
             )}
             {modal?.kind === "assinaturas" && (
               <>
-                {select("planoId", "Plano", options("planos"))}
+                {form.pendingRequest ? (
+                  <p className="full">
+                    Plano <strong>{names("planos", form.planoId)}</strong> ·
+                    Confirme a adesão após combinar as condições com o cliente.
+                  </p>
+                ) : (
+                  select("planoId", "Plano", options("planos"))
+                )}
                 {input("dataInicio", "Data inicial", "date", {
                   min: "1900-01-01",
                   max: "9998-12-31",
@@ -1207,7 +1297,12 @@ export default function App({ globalAdmin = false, onReady }) {
                   : "Situação",
                 statusOptions(
                   modal.kind === "assinaturas"
-                    ? ["ATIVA", "ENCERRADA", "CANCELADA"]
+                    ? [
+                        ...(form.pendingRequest ? ["PENDENTE"] : []),
+                        "ATIVA",
+                        "ENCERRADA",
+                        "CANCELADA",
+                      ]
                     : modal.kind === "agendamentos"
                       ? ["AGENDADO", "CONFIRMADO", "CONCLUIDO", "CANCELADO"]
                       : ["ATIVO", "INATIVO"],

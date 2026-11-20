@@ -4,7 +4,7 @@ import { useTheme } from "./useTheme";
 import { shopPresentation, ShopImage } from "./shopPresentation";
 import { ShopLogo } from "./ShopIdentity";
 
-export default function ShopProfile({ shop, onBack, onBook }) {
+export default function ShopProfile({ shop, onBack, onBook, onPlans }) {
   const { theme, toggleTheme } = useTheme();
   const info = shopPresentation(shop);
   return (
@@ -87,6 +87,9 @@ export default function ShopProfile({ shop, onBack, onBook }) {
               </p>
               <button className="primary" onClick={onBook}>
                 Agendar nesta barbearia <span aria-hidden="true">→</span>
+              </button>
+              <button className="secondary" onClick={onPlans}>
+                Ver planos da barbearia
               </button>
               <small>O pagamento é feito diretamente na barbearia.</small>
             </aside>

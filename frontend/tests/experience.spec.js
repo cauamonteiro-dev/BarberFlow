@@ -60,7 +60,7 @@ for (const [role, heading] of [
       await expect(page.locator(".workspace-identity").last()).toContainText(
         "Barbearia Central",
       );
-      await expect(page.getByLabel("Dia da agenda")).toBeVisible();
+      await expect(page.getByLabel("Dia da agenda", { exact: true })).toBeVisible();
     }
     if (role === "barbearia1") {
       await expect(

@@ -166,8 +166,16 @@ for (const [role, email] of [
         .getByRole("button", { name: "Novo agendamento", exact: true })
         .click();
       await expect(
-        page.getByRole("combobox", { name: "Horário disponível", exact: true }),
+        page.getByRole("group", { name: "Horário disponível", exact: true }),
       ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Abrir calendário: Dia", exact: true })
+        .click();
+      await expect(
+        page.getByRole("group", { name: "Calendário: Dia", exact: true }),
+      ).toBeVisible();
+      await fits(page);
+      await page.keyboard.press("Escape");
       await fits(page);
       await page.getByRole("button", { name: "Voltar", exact: true }).click();
     }

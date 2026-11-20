@@ -235,6 +235,9 @@ export default function AuthShell() {
           >
             {register ? "Já tenho conta" : "Sou cliente e quero me cadastrar"}
           </button>
+          <a className="auth-onboarding-link" href="/?pagina=sua-barbearia">
+            Sua barbearia no BarberFlow <span aria-hidden="true">↗</span>
+          </a>
         </section>
       </div>
     );
