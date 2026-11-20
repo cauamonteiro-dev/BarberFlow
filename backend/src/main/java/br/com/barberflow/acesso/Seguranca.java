@@ -1,5 +1,6 @@
 package br.com.barberflow.acesso;
 import org.springframework.context.annotation.*;
+import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.*;
@@ -8,6 +9,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.*;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.header.writers.ContentSecurityPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 
 @Configuration
 public class Seguranca {
@@ -15,7 +22,16 @@ public class Seguranca {
  @Bean SecurityContextRepository contextRepository(){return new HttpSessionSecurityContextRepository();}
  @Bean UserDetailsService users(JdbcTemplate db){return email->db.query("select email,senha_hash,ativo from usuario where email=?",(rs,n)->User.withUsername(rs.getString(1)).password(rs.getString(2)).roles("USUARIO").disabled(!rs.getBoolean(3)).build(),email.toLowerCase(java.util.Locale.ROOT)).stream().findFirst().orElseThrow(()->new UsernameNotFoundException("Credenciais inválidas."));}
  @Bean SecurityFilterChain filter(HttpSecurity http,SecurityContextRepository repo)throws Exception{
+   var paths = PathPatternRequestMatcher.withDefaults();
+   var paginaPublica = new OrRequestMatcher(
+       paths.matcher(HttpMethod.GET, "/"), paths.matcher(HttpMethod.HEAD, "/"),
+       paths.matcher(HttpMethod.GET, "/index.html"), paths.matcher(HttpMethod.HEAD, "/index.html"));
    return http.securityContext(c->c.securityContextRepository(repo))
+    .headers(h -> h.frameOptions(f -> f.disable())
+        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(paginaPublica,
+            new ContentSecurityPolicyHeaderWriter("frame-ancestors https://mostraplus.com.br")))
+        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(new NegatedRequestMatcher(paginaPublica),
+            new XFrameOptionsHeaderWriter())))
     .csrf(c->c.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
     .authorizeHttpRequests(a->a.requestMatchers("/api/auth/csrf","/api/auth/login","/api/auth/cadastro").permitAll().requestMatchers("/api/**").authenticated().anyRequest().permitAll())
     .exceptionHandling(e->e.authenticationEntryPoint((req,res,ex)->{res.setStatus(401);res.setContentType("application/problem+json");res.setCharacterEncoding("UTF-8");res.getWriter().write("{\"status\":401,\"detail\":\"Faça login para continuar.\"}");})

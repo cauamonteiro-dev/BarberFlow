@@ -41,6 +41,15 @@
   color: #f0e9dd;
   line-height: 1.7;
 }
+.auth-brand-photo.showcase-preview {
+  min-height: 100dvh;
+  justify-content: center;
+}
+.showcase-preview .primary {
+  max-width: 100%;
+  margin-top: 20px;
+  text-decoration: none;
+}
 @media (max-width: 620px) {
   .auth-brand-photo {
     flex-direction: column;
