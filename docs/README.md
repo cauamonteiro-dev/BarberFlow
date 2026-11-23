@@ -12,8 +12,8 @@ description: "Identificação, versão de referência e acesso à demonstração
 | Área | Gestão e agendamento de serviços de barbearia |
 | Registro inicial | RT01 — Revisão Técnica 1 |
 | Estado desta documentação | Revisão da aplicação implementada e demonstrada em novembro de 2026 |
-| Código de referência | [Versão 4571090 no GitHub](https://github.com/cauamonteiro-dev/BarberFlow/tree/4571090cb233b55c7c1ffd8e3ab07434e902371a) |
-| Demonstração hospedada | [Abrir BarberFlow](https://barberflow-demo-x7py.onrender.com/) |
+| Código de referência | [Migração para o Vercel (PR #20)](https://github.com/cauamonteiro-dev/BarberFlow/pull/20) |
+| Demonstração hospedada | [Abrir BarberFlow](https://barberflow-ebon.vercel.app/) |
 
 O projeto foi desenvolvido como aplicação web integrada a PostgreSQL, com frontend React/Vite e backend Java 21/Spring Boot. Possui autenticação, quatro perfis de acesso, gestão por unidade, agenda, planos, assinaturas e relatórios interativos.
 
