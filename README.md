@@ -2,11 +2,17 @@
 
 Plataforma acadêmica de gestão de barbearias: Java 21 / Spring Boot, React / Vite / Axios e PostgreSQL. Implementada a partir dos requisitos, regras e modelo físico do [GitBook](https://a3-sistema-de-gerenciamento-de-b.gitbook.io/a3-sistema-de-gerenciamento-de-barbearia-docs/).
 
+## Demonstração online
+
+[Abrir o BarberFlow](https://barberflow-ebon.vercel.app/). A demonstração acadêmica roda no Vercel Hobby e usa PostgreSQL no Neon Free. A base local é independente da hospedada.
+
+A imagem Docker reúne a interface e a API. O perfil `cloud,vercel` usa a integração do Neon e guarda as sessões no PostgreSQL. As alterações de estrutura são aplicadas pelo Flyway. A publicação deve preservar o mesmo banco e esquema.
+
 ## Testar na sua máquina
 
 No Windows, use **INICIAR-BARBERFLOW.cmd** na raiz do projeto. Na primeira preparação, são necessários JDK 21, Node 22.12+ ou 24 LTS e internet para baixar as dependências. O iniciador prepara a interface e a API juntas, valida os quatro perfis e abre **http://localhost:8181/**. Mantenha a janela aberta durante o uso; para finalizar, use **ENCERRAR-BARBERFLOW.cmd**.
 
-O pacote já preparado inicia sem baixar dependências. O PostgreSQL de demonstração escuta apenas nesta máquina, na porta 55441, com arquivos em `.local/demo-dados`. Ele contém **600 registros de negócio em 15 unidades**, preserva alterações após reiniciar e não usa o banco do Render. Nada em `.local/` deve ser enviado ao GitHub.
+O pacote já preparado inicia sem baixar dependências. O PostgreSQL de demonstração escuta apenas nesta máquina, na porta 55441, com arquivos em `.local/demo-dados`. Ele contém **600 registros de negócio em 15 unidades**, preserva alterações após reiniciar e usa uma base independente da hospedagem. Nada em `.local/` deve ser enviado ao GitHub.
 
 Contas de demonstração: `admin@barberflow.local`, `barbearia1@barberflow.local` até `barbearia15@barberflow.local`, `barbeiro@barberflow.local` e `cliente@barberflow.local`. Senha: **BarberFlow!2026**. Esses acessos pertencem exclusivamente ao modo de demonstração.
 
