@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Sem conexão • BarberFlow</title>
+    <style>
+      :root {
+        --background: #f6f4f0;
+        --text: #152635;
+        --button: #152635;
+        --button-text: #fcfaf8;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #0c141e;
+          --text: #fcfaf8;
+          --button: #d4b480;
+          --button-text: #152635;
+        }
+      }
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100dvh;
+        margin: 0;
+        padding: 24px;
+        box-sizing: border-box;
+        background: var(--background);
+        color: var(--text);
+        font:
+          1rem/1.6 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 26rem;
+      }
+      h1 {
+        line-height: 1.15;
+      }
+      a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 18px;
+        border-radius: 8px;
+        background: var(--button);
+        color: var(--button-text);
+        font-weight: 650;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>BarberFlow</p>
+      <h1>Sem conexão</h1>
+      <p>
+        Conecte-se à internet para consultar sua agenda e concluir operações.
+      </p>
+      <a href="/">Tentar novamente</a>
+    </main>
+  </body>
+</html>

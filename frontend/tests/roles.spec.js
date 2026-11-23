@@ -104,7 +104,7 @@ test("cliente cadastra acesso, reserva, remarca e cancela no próprio portal", a
     page.once("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "Cancelar", exact: true }).click();
     await expect(
-      page.getByRole("cell", { name: "Cancelado", exact: true }),
+      page.getByRole("cell").getByText("Cancelado", { exact: true }),
     ).toBeVisible();
     const denied = await page.request.get("/api/clientes");
     expect(denied.status()).toBe(403);

@@ -346,3 +346,15 @@
     max-width: 20rem;
   }
 }
+
+@media (pointer: coarse) {
+  .date-calendar-toggle,
+  .date-calendar-grid button,
+  .slot-option > span {
+    min-height: 44px;
+  }
+
+  .date-calendar-grid button {
+    padding-inline: 0;
+  }
+}

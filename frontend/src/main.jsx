@@ -22,5 +22,20 @@ createRoot(document.getElementById("root")).render(
   <React.StrictMode>{page}</React.StrictMode>,
 );
 
+if (
+  import.meta.env.PROD &&
+  window.self === window.top &&
+  "serviceWorker" in navigator
+) {
+  navigator.serviceWorker
+    .register("/sw.js", { updateViaCache: "none" })
+    .catch((error) =>
+      console.warn(
+        "Não foi possível preparar o BarberFlow para uso como app.",
+        error,
+      ),
+    );
+}
+
 import "./mobile.css";
 import "./login-hero.css";

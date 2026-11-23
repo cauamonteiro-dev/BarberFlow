@@ -21,6 +21,14 @@ Interface responsiva, navegação por teclado, labels nos campos, formulário mo
 
 `src/api.js` centraliza Axios e as mensagens de erro; `src/App.jsx` compõe as telas e formulários; `src/style.css` contém a apresentação responsiva. Os valores de preço são formatados em reais e as datas em pt-BR.
 
+## Instalação no celular
+
+Abra o endereço HTTPS do BarberFlow no navegador. No Android, use o menu do Chrome para instalar o app ou adicioná-lo à tela inicial. No iPhone, abra o menu de compartilhamento do Safari e escolha **Adicionar à Tela de Início**. Depois, abra o ícone **BarberFlow** e use a sua conta habitual.
+
+Agendas, planos e reservas precisam de conexão com o servidor. A PWA guarda apenas a página de aviso sem conexão. Se perder a rede durante uma reserva, consulte seus agendamentos ao reconectar para confirmar o resultado antes de repetir a operação.
+
+Para validar a instalação, sirva o build compilado com o backend de teste. Use localhost no computador ou HTTPS em um endereço de teste acessível ao celular. A suíte automatizada verifica o manifesto, os ícones, a tela sem conexão e o retorno à sessão. Confirme também a instalação e a tela de abertura pelo ícone em aparelhos Android e iPhone.
+
 ## Testes de navegador
 
 Com backend e frontend iniciados, execute na raiz `scripts/testar-interface.ps1`. Linux/macOS: `npx playwright install chromium` e `npm run test:e2e`. Os testes utilizam a API real, criam uma unidade com nome de teste e a inativam após a execução. Eles devem ser executados no banco local de demonstração. Evidências e traces de falha ficam em `test-results`; screenshots locais em `.local/qa` na raiz. O script Windows mantém o Chromium em `.local/browsers`, para evitar downloads repetidos entre sessões.

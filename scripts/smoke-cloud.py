@@ -63,6 +63,24 @@ assert status == 200 and '<div id="root">' in html, "Built frontend is missing"
 assert request("HEAD", "/index.html", verify_headers=verify_showcase_preview)[0] == 200
 asset = re.search(r'src="([^"]+\.js)"', html)
 assert asset and request("GET", asset.group(1))[0] == 200, "Compiled asset unavailable"
+
+
+def verify_content_type(expected):
+    def verify(response):
+        assert expected in response.getheader("Content-Type", ""), expected
+    return verify
+
+
+assert 'rel="manifest" href="/manifest.webmanifest"' in html
+status, manifest_text = request("GET", "/manifest.webmanifest", verify_headers=verify_content_type("json"))
+assert status == 200 and json.loads(manifest_text)["display"] == "standalone"
+assert request("GET", "/sw.js", verify_headers=verify_content_type("javascript"))[0] == 200
+assert request("GET", "/offline.html", verify_headers=verify_content_type("text/html"))[0] == 200
+icons = [icon["src"] for icon in json.loads(manifest_text)["icons"]]
+apple_images = re.findall(r'rel="apple-touch-(?:icon|startup-image)"[^>]+href="([^"]+)"', html)
+for url in icons + apple_images:
+    assert request("HEAD", url, verify_headers=verify_content_type("image/png"))[0] == 200, url
+
 assert request(
     "GET", "/api/auth/me",
     headers={"Origin": "https://mostraplus.com.br"},
