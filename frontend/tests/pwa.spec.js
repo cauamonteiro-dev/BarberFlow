@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { loginRequest } from "./helpers";
 
+test.use({ serviceWorkers: "allow" });
+
 test("site entrega o manifesto e os arquivos de instalação", async ({
   request,
 }) => {

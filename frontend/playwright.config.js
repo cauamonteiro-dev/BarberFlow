@@ -9,6 +9,8 @@ export default defineConfig({
     timezoneId: "America/Sao_Paulo",
     baseURL: process.env.E2E_URL || "http://127.0.0.1:5173",
     trace: "retain-on-failure",
+    // Mantém as interceptações de rede determinísticas nos testes da interface.
+    serviceWorkers: "block",
     ...(process.env.E2E_TOUCH === "1"
       ? {
           isMobile: true,
