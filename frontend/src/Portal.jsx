@@ -253,7 +253,11 @@ export default function Portal({
       }
     } catch (e) {
       if (e.response?.data?.detail?.includes("preço")) await load();
-      setError(errorMessage(e));
+      setError(
+        client && !e.response
+          ? "Não foi possível conferir o resultado. Consulte seus agendamentos antes de tentar de novo."
+          : errorMessage(e),
+      );
     } finally {
       setBusy(false);
     }

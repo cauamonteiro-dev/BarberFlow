@@ -30,15 +30,20 @@ jobs:
         run: |
           npm ci
           npm run build
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
       - name: Iniciar ambiente isolado
         run: |
           (cd backend && bash mvnw -B spring-boot:test-run -Dspring-boot.run.main-class=br.com.barberflow.LocalDemoApplication > ../backend.log 2>&1) &
-          (cd frontend && npm run dev > ../frontend.log 2>&1) &
+          (cd frontend && npm run preview -- --port 5173 --strictPort > ../frontend.log 2>&1) &
           python3 scripts/aguardar-demo.py
       - name: Testar interface real
         working-directory: frontend
         run: npm run test:e2e
+      - name: Verificar os fluxos móveis no WebKit
+        working-directory: frontend
+        env:
+          E2E_TOUCH: '1'
+        run: npm run test:e2e -- --browser=webkit tests/mobile.spec.js tests/roles.spec.js tests/customer-plans.spec.js tests/pwa.spec.js
       - name: Guardar evidências
         if: always()
         uses: actions/upload-artifact@v4
