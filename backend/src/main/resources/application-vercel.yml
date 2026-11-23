@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${PGHOST_UNPOOLED:${PGHOST}}:${PGPORT:5432}/${PGDATABASE}?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
+    hikari:
+      minimum-idle: 0
+      maximum-pool-size: 3
+
