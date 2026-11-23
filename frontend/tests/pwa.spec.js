@@ -52,15 +52,7 @@ test("a queda de conexão abre aviso e mantém os dados privados fora do cache",
   );
   await loginRequest(context.request, "cliente@barberflow.local");
   await page.goto("/");
-  await page.waitForFunction(async () =>
-    Boolean((await navigator.serviceWorker.getRegistration())?.active),
-  );
-  await page.reload();
-  await expect
-    .poll(() =>
-      page.evaluate(() => Boolean(navigator.serviceWorker.controller)),
-    )
-    .toBe(true);
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   const agenda = page.getByRole("heading", { name: "Meus agendamentos" });
   await expect(agenda).toBeVisible();
 

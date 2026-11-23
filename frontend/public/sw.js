@@ -22,7 +22,8 @@ self.addEventListener("activate", (event) => {
             .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
             .map((key) => caches.delete(key)),
         ),
-      ),
+      )
+      .then(() => self.clients.claim()),
   );
 });
 
