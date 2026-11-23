@@ -168,7 +168,7 @@ class BarbeariaApiTest {
 
         Flyway demo = Flyway.configure().dataSource(url, "postgres", "postgres")
                 .locations("classpath:db/migration", "classpath:db/demo").load();
-        assertThat(demo.migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(demo.migrate().migrationsExecuted).isEqualTo(4);
         assertThat(demo.migrate().migrationsExecuted).isZero();
         assertThat(demoDb.queryForList(agendaSemColunaNova, String.class)).isEqualTo(agendaAnterior);
         assertThat(demoDb.queryForObject("select count(*) from agendamento where assinatura_id is not null", Integer.class)).isZero();
