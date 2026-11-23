@@ -1,13 +1,12 @@
 name: Validar imagem de nuvem
 on:
-  push:
-    branches: ['feat/publicacao-nuvem']
   pull_request:
     branches: [main]
     paths:
       - Dockerfile
       - .dockerignore
       - render.yaml
+      - vercel.json
       - backend/**
       - frontend/**
       - scripts/smoke-cloud.py
