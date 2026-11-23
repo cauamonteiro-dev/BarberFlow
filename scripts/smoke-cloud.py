@@ -67,12 +67,13 @@ assert asset and request("GET", asset.group(1))[0] == 200, "Compiled asset unava
 
 def verify_content_type(expected):
     def verify(response):
-        assert expected in response.getheader("Content-Type", ""), expected
+        actual = response.getheader("Content-Type", "")
+        assert expected in actual, f"Expected {expected}, received {actual!r}"
     return verify
 
 
-assert 'rel="manifest" href="/manifest.webmanifest"' in html
-status, manifest_text = request("GET", "/manifest.webmanifest", verify_headers=verify_content_type("json"))
+assert 'rel="manifest" href="/manifest.json"' in html
+status, manifest_text = request("GET", "/manifest.json", verify_headers=verify_content_type("json"))
 assert status == 200 and json.loads(manifest_text)["display"] == "standalone"
 assert request("GET", "/sw.js", verify_headers=verify_content_type("javascript"))[0] == 200
 assert request("GET", "/offline.html", verify_headers=verify_content_type("text/html"))[0] == 200

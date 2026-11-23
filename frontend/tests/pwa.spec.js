@@ -5,8 +5,8 @@ test("site entrega o manifesto e os arquivos de instalação", async ({
   request,
 }) => {
   const html = await (await request.get("/")).text();
-  expect(html).toContain('rel="manifest" href="/manifest.webmanifest"');
-  const response = await request.get("/manifest.webmanifest");
+  expect(html).toContain('rel="manifest" href="/manifest.json"');
+  const response = await request.get("/manifest.json");
   expect(response.ok()).toBe(true);
   expect(response.headers()["content-type"]).toMatch(/json/);
   const manifest = await response.json();
