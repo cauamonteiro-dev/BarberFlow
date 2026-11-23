@@ -48,7 +48,8 @@ Os testes citados representam cobertura dos cenários correspondentes; não subs
 | Gestão por unidade | Administrador global explícito, Barbearia e isolamento |
 | Demonstração ampliada | 600 registros iniciais em 15 unidades e dashboards |
 | PR #10 | Identificação dos perfis, página inicial do cliente e inicializador integrado |
-| Publicação de 18/11/2026 | Migração conferida para Render e persistência após reinício |
+| Publicação de 18/11/2026 | Publicação histórica e teste de persistência após reinício |
+| Publicação de 23/11/2026 | Migração para Vercel e Neon com comparação da base e teste dos quatro perfis |
 | PR #11 | Consulta de horários em lote e estados de carregamento/erro |
 
 ### Critério de manutenção da documentação
